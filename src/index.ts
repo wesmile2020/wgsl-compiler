@@ -1,1 +1,1 @@
-console.log('this is a wgsl compiler');
+export { version } from '~/package.json';

@@ -1,24 +1,47 @@
 {
   "name": "wgsl-compiler",
   "version": "1.0.0",
+  "description": "A WGSL compiler for WebGPU",
+  "keywords": [
+    "webgpu",
+    "wgsl",
+    "wgsl-compiler",
+    "wgsl-parser"
+  ],
+  "homepage": "https://github.com/wesmile2020/wgsl-compiler#readme",
+  "bugs": {
+    "url": "https://github.com/wesmile2020/wgsl-compiler/issues"
+  },
+  "license": "MIT",
+  "author": "lei.li",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wesmile2020/wgsl-compiler.git"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
-  "files": ["dist"],
   "main": "dist/index.js",
   "typings": "dist/typings/index.d.ts",
   "exports": {
     ".": {
-      "import": "./index.js",
       "types": "./dist/typings/index.d.ts",
+      "import": "./index.js",
       "require": "./index.umd.cjs"
     }
   },
   "scripts": {
     "build": "tsc && vite build",
-    "typings": "extract-typings -e src/index.ts -o dist/typings -f index"
+    "typings": "extract-typings -e src/index.ts -o dist/typings -f index",
+    "lint": "oxlint",
+    "format": "oxfmt"
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
     "extract-typings": "^1.0.2",
+    "oxfmt": "^0.26.0",
+    "oxlint": "^1.41.0",
     "typescript": "~5.9.3",
     "vite": "8.0.0-beta.8"
   },
