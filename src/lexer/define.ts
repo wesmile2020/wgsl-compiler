@@ -1,3 +1,4 @@
+/** @type { TokenType.SYNTAX_KEYWORD } */
 export const SYNTAX_KEYWORDS: string[] = [
   'fn', 'let', 'var', 'const', 'override',
   'if', 'else', 'loop', 'for', 'while', 'break', 'continue', 'return',
@@ -7,6 +8,7 @@ export const SYNTAX_KEYWORDS: string[] = [
   'struct', 'true', 'false',
 ];
 
+/** @type { TokenType.TYPE_KEYWORD } */
 export const TYPE_KEYWORDS: string[] = [
   'i32', 'u32', 'f32', 'f16', 'bool',
   'vec2', 'vec3', 'vec4',
@@ -23,6 +25,7 @@ export const TYPE_KEYWORDS: string[] = [
   'texture_depth_cube', 'texture_depth_cube_array'
 ];
 
+/** @type { TokenType.BUILTIN_FUNCTION } */
 export const BUILTIN_FUNCTIONS: string[] = [
   'radians', 'degrees', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
   'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh',
@@ -50,6 +53,7 @@ export const BUILTIN_FUNCTIONS: string[] = [
   'select', 'all', 'any',
 ];
 
+/** @type { TokenType.BUILTIN_VALUE } */
 export const BUILTIN_VALUES: string[] = [
   'vertex_index', 'instance_index', 'position', 'front_facing',
   'frag_depth', 'local_invocation_id', 'local_invocation_index',
@@ -58,6 +62,7 @@ export const BUILTIN_VALUES: string[] = [
   'subgroup_size'
 ];
 
+/** @type { TokenType.ATTRIBUTE } */
 export const ATTRIBUTES: string[] = [
   'vertex', 'fragment', 'compute',
   'group', 'binding', 'location',
@@ -69,22 +74,28 @@ export const ATTRIBUTES: string[] = [
   'storage_class', 'type', 'workgroup_size'
 ];
 
+/** @type { TokenType.OPERATOR } */
 export const THREE_CHAR_OPERATORS: string[] = [
   '<<=', '>>=', '...',
 ];
 
+/** @type { TokenType.OPERATOR } */
 export const TWO_CHAR_OPERATORS: string[] = [
   '==', '!=', '<=', '>=', '&&', '||', '->', '::', '<<', '>>',
+  '+=', '-=', '*=', '/=', '%=', '&=', '^=', '|=',
 ];
 
+/** @type { TokenType.OPERATOR } */
 export const OPERATOR_CHARS: string[] = [
   '=', '+', '-', '*', '/', '%', '!', '&', '|', '^', '~', '.', '?',
 ];
 
+/** @type { TokenType.PUNCTUATION } */
 export const PUNCTUATION_CHARS: string[] = [
   ',', ';', ':',
 ];
 
+/** @type { TokenType.BRACKET } */
 export const BRACKET_CHARS: string[] = [
   '(', ')', '[', ']', '{', '}', '<', '>',
 ];

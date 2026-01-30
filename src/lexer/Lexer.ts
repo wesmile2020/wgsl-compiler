@@ -44,8 +44,12 @@ export class Lexer {
   private _errors: LexerError[] = [];
 
   tokenize(source: string): LexerOutput {
+    this._position = 0;
+    this._line = 1;
+    this._column = 1;
     this._source = source;
     this._tokens = [];
+    this._errors = [];
 
     while (this._position < this._source.length) {
       const char = this._source[this._position];
