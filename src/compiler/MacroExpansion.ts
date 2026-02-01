@@ -84,7 +84,22 @@ export class MacroExpansion {
   }
 
   private _processMacro(macroName: string, macroValue: MacroValue): string {
-    let output = '';
+    let output = macroValue.body;
+    const queue: string[] = [...macroValue.dependencies];
+    while (queue.length > 0) {
+      const dependence = queue.shift()!;
+      const dependenceValue = this._macros.get(dependence);
+      if (dependenceValue) {
+        queue.push(...dependenceValue.dependencies);
+        output = output.replaceAll(dependence, dependenceValue.body);
+      }
+    }
+    const nextMacroValue = {
+      ...macroValue,
+      body: output,
+      dependencies: new Set<string>(),
+    };
+    this._macros.set(macroName, nextMacroValue);
 
     return output;
   }
@@ -111,9 +126,13 @@ export class MacroExpansion {
 }
 
 const expansion = new MacroExpansion();
+expansion.defineMacro('VALUE_TEN VALUE_PLUS_FIVE - 5');
 expansion.defineMacro('VALUE_PLUS_FIVE (VALUE + 5)');
 expansion.defineMacro('VALUE 10');
 expansion.defineMacro('MULTIPLY(a, b) ((a) * (b))');
 
-const output1 = expansion.expansion('VALUE_PLUS_FIVE + 100');
+const output1 = expansion.expansion('VALUE_TEN + 100');
 console.log(output1);
+
+const output2 = expansion.expansion('VALUE * 10');
+console.log(output2);
