@@ -5,11 +5,12 @@ import {
   type FunctionMacro,
   type Macro,
   type MacroToken,
+  type MacroParameter,
 } from './define';
-import { extractFormalParameters } from './helper';
+import { extractParameters, toMacroToken } from './helper';
 
-export interface MacroExpansionOutput {
-  code: string;
+export interface MacroExpandOutput {
+  tokens: MacroToken[];
   errors: string[];
 }
 
@@ -25,48 +26,141 @@ export class MacroExpansion {
         this._macros.set(macro.name, macro);
       }
     }
-
-    for (const [name, macro] of this._macros) {
-      this._flatMacro(name, macro, new Set());
+    for (const [_, macro] of this._macros) {
+      this._flatMacro(macro, new Set());
     }
   }
 
-  private _flatMacro(name: string, macro: Macro, visited: Set<string>): Macro {
+  private _runMacroFunction(
+    parentName: string,
+    macro: FunctionMacro,
+    localVariable: Set<string>,
+    actualParameters: MacroParameter[],
+    visited: Set<string>,
+  ): MacroToken[] {
+    if (visited.has(macro.name)) {
+      this._errors.push(`Macro expansion error: circular macro definition detected. ${[...visited, macro.name].join('->')}`);
+      return macro.tokens;
+    }
+    visited.add(macro.name);
+    if (macro.formalParameters.length !== actualParameters.length) {
+      this._errors.push(`MacroExpansion argument error: ${macro.name} actual args do not match on macro ${parentName}`);
+    }
+    const parameterMap: Map<string, MacroParameter> = new Map();
+    const min = Math.min(actualParameters.length, macro.formalParameters.length);
+    for (let i = 0; i < min; i += 1) {
+      // process actual parameter
+      const flattedParameter: MacroParameter = {
+        body: '',
+        tokens: [],
+      };
+      const actualParameterTokens = actualParameters[i].tokens;
+      let j = 0;
+      while (j < actualParameterTokens.length) {
+        const token = actualParameterTokens[j];
+        if (
+          token.type === TokenType.IDENTIFIER &&
+          !localVariable.has(token.value) &&
+          this._macros.has(token.value)
+        ) {
+          const nestedMacro = this._flatMacro(this._macros.get(token.value)!, visited);
+          if (nestedMacro.type === 'value') {
+            flattedParameter.body += nestedMacro.body;
+            flattedParameter.tokens.push(...nestedMacro.tokens);
+          } else if (nestedMacro.type === 'function') {
+            const childActualParameters = extractParameters(actualParameterTokens, j + 1);
+            if (childActualParameters) {
+              const outTokens = this._runMacroFunction(
+                macro.name,
+                nestedMacro,
+                localVariable,
+                childActualParameters.parameters,
+                visited,
+              );
+              flattedParameter.body += outTokens.map((item) => item.value).join('');
+              flattedParameter.tokens.push(...outTokens);
+              j = childActualParameters.endIndex - 1;
+            }
+          }
+        } else {
+          flattedParameter.body += token.value;
+          flattedParameter.tokens.push(token);
+        }
+        j += 1;
+      }
+      parameterMap.set(macro.formalParameters[i].body, flattedParameter);
+    }
+    visited.delete(macro.name);
+    const output: MacroToken[] = [];
+    for (let i = 0; i < macro.tokens.length; i += 1) {
+      const token = macro.tokens[i];
+      if (parameterMap.has(token.value)) {
+        const actualParameter = parameterMap.get(token.value)!;
+        output.push(...actualParameter.tokens);
+      } else {
+        output.push(token);
+      }
+    }
+
+    return output;
+  }
+
+  private _flatMacro(macro: Macro, visited: Set<string>): Macro {
     if (macro.flatted) {
       return macro;
     }
-    if (visited.has(name)) {
-      this._errors.push(`Macro expansion error: circular macro definition detected.`);
-      return macro;
+    if (visited.has(macro.name)) {
+      this._errors.push(`Macro expansion error: circular macro definition detected. ${[...visited, macro.name].join('->')}`);
+      const flattedMacro: Macro = { ...macro, flatted: true };
+      this._macros.set(macro.name, flattedMacro);
+      return flattedMacro;
     }
+    visited.add(macro.name);
     const flattedTokens: MacroToken[] = [];
-    for (let i = 0; i < macro.tokens.length; i += 1) {
+    let i = 0;
+    while (i < macro.tokens.length) {
       const token = macro.tokens[i];
       if (token.type === TokenType.IDENTIFIER && this._macros.has(token.value)) {
-        const newVisited = new Set([name]);
-        const nestedMacro = this._flatMacro(token.value, this._macros.get(token.value)!, newVisited);
+        const nestedMacro = this._flatMacro(this._macros.get(token.value)!, visited);
         if (nestedMacro.type === 'value') {
           flattedTokens.push(...nestedMacro.tokens);
-        } else {
-          // TODO: function macro expansion
+        } else if (nestedMacro.type === 'function') {
+          const localVariable: Set<string> = new Set();
+          if (macro.type === 'function') {
+            for (let i = 0; i < macro.formalParameters.length; i += 1) {
+              localVariable.add(macro.formalParameters[i].body);
+            }
+          }
+          const actualParameters = extractParameters(macro.tokens, i + 1);
+          if (actualParameters) {
+            const outTokens = this._runMacroFunction(
+              macro.name,
+              nestedMacro,
+              localVariable,
+              actualParameters.parameters,
+              visited,
+            );
+            flattedTokens.push(...outTokens);
+
+            i = actualParameters.endIndex - 1;
+          }
         }
       } else {
         flattedTokens.push(token);
       }
+
+      i += 1;
     }
+    visited.delete(macro.name);
     const flattedMacro: Macro = {
       ...macro,
       flatted: true,
       body: flattedTokens.map((item) => item.value).join(''),
       tokens: flattedTokens,
     };
-    this._macros.set(name, flattedMacro);
+    this._macros.set(macro.name, flattedMacro);
 
     return flattedMacro;
-  }
-
-  getMacro(name: string): Macro | null {
-    return this._macros.get(name) || null;
   }
 
   private _parseDefine(define: string): Macro | null {
@@ -87,7 +181,7 @@ export class MacroExpansion {
         body: '',
         tokens: [],
       };
-      const parameterOutput = extractFormalParameters(tokens, 1);
+      const parameterOutput = extractParameters(tokens, 1);
       if (!parameterOutput) {
         this._errors.push(`Invalid macro function definition: ${define}`);
         return null;
@@ -118,14 +212,56 @@ export class MacroExpansion {
     }
     return macro;
   }
+
+  getMacro(name: string): Macro | null {
+    return this._macros.get(name) || null;
+  }
+
+  getErrors(): string[] {
+    return this._errors;
+  }
+
+  expand(line: string): MacroExpandOutput {
+    const initErrors = this._errors;
+    this._errors = [];
+    const { tokens, errors } = this._lexer.tokenize(line);
+    const output: MacroExpandOutput = {
+      tokens: [],
+      errors: [],
+    };
+    for (let i = 0; i < errors.length; i += 1) {
+      output.errors.push(`MacroExpansion expand error: ${errors[i].message}`);
+    }
+    let i = 0;
+    while (i < tokens.length) {
+      if (tokens[i].type === TokenType.IDENTIFIER && this._macros.has(tokens[i].value)) {
+        const nestedMacro = this._flatMacro(this._macros.get(tokens[i].value)!, new Set());
+        if (nestedMacro.type === 'value') {
+          output.tokens.push(...nestedMacro.tokens);
+        } else if (nestedMacro.type === 'function') {
+          const actualParameters = extractParameters(tokens, i + 1);
+          if (actualParameters) {
+            const outTokens = this._runMacroFunction(
+              '__GLOBAL__',
+              nestedMacro,
+              new Set(),
+              actualParameters.parameters,
+              new Set(),
+            );
+            output.tokens.push(...outTokens);
+            i = actualParameters.endIndex - 1;
+          }
+        }
+      } else {
+        output.tokens.push(toMacroToken(tokens[i]));
+      }
+
+      i += 1;
+    }
+    // add catch expand error
+    output.errors.push(...this._errors);
+    // recovery init error;
+    this._errors = initErrors;
+    return output;
+  }
 }
-
-const expand = new MacroExpansion([
-  'VALUE_FIVE (VALUE_TEN) / (VALUE_TWO)',
-  'VALUE_TEN VALUE_ONE * 10',
-  'VALUE_TWO VALUE_ONE + VALUE_ONE',
-  'VALUE_ONE 1',
-]);
-
-console.log(expand.getMacro('VALUE_FIVE')?.body);
-console.log(expand.getMacro('VALUE_TWO')?.body);

@@ -2348,12 +2348,13 @@ fn cs_main(@builtin(global_invocation_id) id: vec3<u32>) {
 
   try {
     // 词法分析
+    const start = performance.now();
     const tokenizer = new WGSLTokenizer(testWGSL, {
       preserveComments: true,
       strictMode: false
     });
     const tokens = tokenizer.tokenize();
-    console.log(`词法分析完成，共 ${tokens.length} 个词法单元\n`);
+    console.log(`词法分析完成，共 ${tokens.length} 个词法单元 spend ${performance.now() - start}ms\n`);
 
     // 显示词法单元统计
     const tokenStats = analyzeTokens(tokens);
@@ -2370,6 +2371,7 @@ fn cs_main(@builtin(global_invocation_id) id: vec3<u32>) {
       console.log(`  @${attr.name.padEnd(20)}: ${attr.count} 次`);
     });
 
+    process.exit(0);
     // 语法分析
     const parser = new WGSLParser(tokens);
     const ast = parser.parse();

@@ -6,7 +6,7 @@ export interface MacroToken {
 }
 
 export interface MacroParameter {
-  value: string;
+  body: string;
   tokens: MacroToken[];
 }
 
@@ -28,7 +28,7 @@ export interface FunctionMacro extends BaseMacro {
 
 export type Macro = ValueMacro | FunctionMacro;
 
-interface OperatorInfo {
+export interface OperatorInfo {
   priority: number;
   associativity: 'left' | 'right';
   arity: number;
