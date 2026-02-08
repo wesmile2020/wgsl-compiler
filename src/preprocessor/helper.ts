@@ -1,20 +1,15 @@
 import { TokenType, type Token } from '@/lexer/TokenType';
-import { type MacroParameter, type MacroToken } from './define';
+import { type MacroParameter } from './MacroType';
 
 export interface ParameterOutput {
   parameters: MacroParameter[];
   endIndex: number;
 }
 
-export function toMacroToken(token: Token | MacroToken): MacroToken {
-  const output: MacroToken = {
-    type: token.type,
-    value: token.value,
-  };
-  return output;
-}
-
-export function extractParameters(tokens: MacroToken[], startIndex: number): ParameterOutput | null {
+export function extractParameters(
+  tokens: Token[],
+  startIndex: number,
+): ParameterOutput | null {
   if (startIndex < 0 || startIndex >= tokens.length) {
     return null;
   }
@@ -46,15 +41,14 @@ export function extractParameters(tokens: MacroToken[], startIndex: number): Par
       }
       currentParameter = null;
     } else if (bracketDepth >= 1) {
-      const macroToken = toMacroToken(tokens[i]);
       if (!currentParameter) {
         currentParameter = {
           body: tokens[i].value,
-          tokens: [macroToken]
+          tokens: [tokens[i]],
         };
       } else {
         currentParameter.body += tokens[i].value;
-        currentParameter.tokens.push(macroToken);
+        currentParameter.tokens.push(tokens[i]);
       }
     }
     i += 1;

@@ -50,5 +50,5 @@ const code = `
 ///#define VALUE 10
 ///#define VALUE_2 (VALUE + 5)
 ///#define MAX(a, b) ((a) > (b) ? (a) : (b))
-`
+`;
 preprocess(code);

@@ -1,9 +1,4 @@
-import {
-  type Token,
-  type LexerError,
-  type LexerOutput,
-  TokenType,
-} from './TokenType';
+import { type Token, type LexerError, type LexerOutput, TokenType } from './TokenType';
 import {
   SYNTAX_KEYWORDS,
   TYPE_KEYWORDS,
@@ -16,13 +11,7 @@ import {
   PUNCTUATION_CHARS,
   BRACKET_CHARS,
 } from './define';
-import {
-  isWhitespace,
-  isIdentifierStart,
-  isIdentifierPart,
-  isDigit,
-  isHexDigit,
-} from './helper';
+import { isWhitespace, isIdentifierStart, isIdentifierPart, isDigit, isHexDigit } from './helper';
 
 export class Lexer {
   private _syntaxKeywords: Set<string> = new Set(SYNTAX_KEYWORDS);
@@ -74,9 +63,7 @@ export class Lexer {
         this._readIdentifierOrKeyword();
         continue;
       }
-      if (isDigit(char) ||
-        (char === '.' && isDigit(this._peek(1)))
-      ) {
+      if (isDigit(char) || (char === '.' && isDigit(this._peek(1)))) {
         this._readNumber();
         continue;
       }
@@ -221,7 +208,10 @@ export class Lexer {
       }
 
       // deal exponent
-      if (this._position < this._source.length && this._source[this._position].toLowerCase() === 'e') {
+      if (
+        this._position < this._source.length &&
+        this._source[this._position].toLowerCase() === 'e'
+      ) {
         this._position += 1;
         this._column += 1;
 
