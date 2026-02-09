@@ -32,7 +32,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "vite build && npm run typings",
     "typings": "extract-typings -e src/index.ts -o dist/typings -f index",
     "lint": "oxlint",
     "format": "oxfmt"

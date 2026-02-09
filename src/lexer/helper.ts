@@ -1,19 +1,24 @@
-export function isWhitespace(char: string): boolean {
-  return char === ' ' || char === '\t' || char === '\n';
+export function isWhitespace(code: number): boolean {
+  // ' ', \t, \n
+  return code === 32 || code === 9 || code === 10;
 }
 
-export function isIdentifierStart(char: string): boolean {
-  return /[a-zA-Z_]/.test(char);
+export function isIdentifierStart(code: number): boolean {
+  // _, A-Z, a-z
+  return code === 95 || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
 }
 
-export function isIdentifierPart(char: string): boolean {
-  return /[a-zA-Z0-9_]/.test(char);
+export function isIdentifierPart(code: number): boolean {
+  // A-Z, a-z, 0-9, _
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95;
 }
 
-export function isDigit(char: string): boolean {
-  return /[0-9]/.test(char);
+export function isDigit(code: number): boolean {
+  // 0-9
+  return code >= 48 && code <= 57;
 }
 
-export function isHexDigit(char: string): boolean {
-  return /[0-9a-fA-F]/.test(char);
+export function isHexDigit(code: number): boolean {
+  // 0-9, a-f, A-F
+  return (code >= 48 && code <= 57) || (code >= 97 && code <= 102) || (code >= 65 && code <= 70);
 }

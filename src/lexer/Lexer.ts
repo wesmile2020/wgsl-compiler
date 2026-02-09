@@ -41,34 +41,34 @@ export class Lexer {
     this._errors = [];
 
     while (this._position < this._source.length) {
-      const char = this._source[this._position];
-      if (isWhitespace(char)) {
+      const code = this._source.charCodeAt(this._position);
+      if (isWhitespace(code)) {
         this._skipWhitespace();
         continue;
       }
 
-      if (char === '/' && this._peek(1) === '/') {
+      if (code === 47 && this._peek(1) === 47) { // //
         this._readLineComment();
         continue;
       }
-      if (char === '/' && this._peek(1) === '*') {
+      if (code === 47 && this._peek(1) === 42) { // /*
         this._readBlockComment();
         continue;
       }
-      if (char === '@') {
+      if (code === 64) { // @
         this._readAttribute();
         continue;
       }
-      if (isIdentifierStart(char)) {
+      if (isIdentifierStart(code)) {
         this._readIdentifierOrKeyword();
         continue;
       }
-      if (isDigit(char) || (char === '.' && isDigit(this._peek(1)))) {
+      if (isDigit(code) || (code === 46 && isDigit(this._peek(1)))) { // .123
         this._readNumber();
         continue;
       }
 
-      if (char === '"') {
+      if (code === 34) { // "
         this._readString();
         continue;
       }
@@ -181,27 +181,27 @@ export class Lexer {
 
     let isFloat = false;
 
-    if (this._source[this._position] === '0' && this._peek(1).toLowerCase() === 'x') {
+    if (this._peek(0) === 48 && (this._peek(1) === 120) || this._peek(1) === 88) { // 0x or 0X
       this._position += 2;
       this._column += 2;
 
-      while (this._position < this._source.length && isHexDigit(this._source[this._position])) {
+      while (this._position < this._source.length && isHexDigit(this._peek(0))) {
         this._position += 1;
         this._column += 1;
       }
     } else {
-      while (this._position < this._source.length && isDigit(this._source[this._position])) {
+      while (this._position < this._source.length && isDigit(this._peek(0))) {
         this._position += 1;
         this._column += 1;
       }
 
       // deal float
-      if (this._position < this._source.length && this._source[this._position] === '.') {
+      if (this._position < this._source.length && this._peek(0) === 46) { // .
         isFloat = true;
         this._position += 1;
         this._column += 1;
 
-        while (this._position < this._source.length && isDigit(this._source[this._position])) {
+        while (this._position < this._source.length && isDigit(this._peek(0))) {
           this._position += 1;
           this._column += 1;
         }
@@ -222,7 +222,7 @@ export class Lexer {
           this._column += 1;
         }
 
-        while (this._position < this._source.length && isDigit(this._source[this._position])) {
+        while (this._position < this._source.length && isDigit(this._peek(0))) {
           this._position += 1;
           this._column += 1;
         }
@@ -287,7 +287,7 @@ export class Lexer {
 
   private _loadIdentifier(): string {
     const start = this._position;
-    while (this._position < this._source.length && isIdentifierPart(this._source[this._position])) {
+    while (this._position < this._source.length && isIdentifierPart(this._peek(0))) {
       this._position += 1;
       this._column += 1;
     }
@@ -309,7 +309,7 @@ export class Lexer {
       } else {
         this._column += 1;
       }
-      if (this._source[this._position] === '*' && this._peek(1) === '/') {
+      if (this._source[this._position] === '*' && this._peek(1) === 47) { // */
         this._column += 2;
         this._position += 2;
         break;
@@ -360,11 +360,11 @@ export class Lexer {
     };
   }
 
-  private _peek(n: number): string {
+  private _peek(n: number): number {
     if (this._position + n >= this._source.length) {
-      return '\0';
+      return 0;
     }
-    return this._source[this._position + n];
+    return this._source.charCodeAt(this._position + n);
   }
 
   private _addError(message: string, line?: number, column?: number): void {
@@ -377,7 +377,7 @@ export class Lexer {
   }
 
   private _skipWhitespace(): void {
-    while (this._position < this._source.length && isWhitespace(this._source[this._position])) {
+    while (this._position < this._source.length && isWhitespace(this._peek(0))) {
       if (this._source[this._position] === '\n') {
         this._line += 1;
         this._column = 1;
