@@ -1,8 +1,8 @@
 import type { TokenType } from "@/lexer/TokenType";
 
 export const enum ASTKind {
+  ERROR,
   PROGRAM,
-
   NUMBER_LITERAL,
   STRING_LITERAL,
   UNARY_EXPRESSION,
@@ -47,7 +47,7 @@ export interface UnaryExpressionNode extends ASTNode<ASTKind.UNARY_EXPRESSION> {
   operand: ASTNode;
 }
 
-type BinaryOperator = '+' | '-' | '*' | '/' | '%' | // math operators
+export type BinaryOperator = '+' | '-' | '*' | '/' | '%' | // math operators
   '&&' | '||' | // logical operators
   '&' | '|' | '^' | '<<' | '>>' | // bitwise operators
   '==' | '!=' | '<' | '>' | '<=' | '>='; // relational operators
@@ -63,3 +63,5 @@ export interface ConditionalExpressionNode extends ASTNode<ASTKind.CONDITIONAL_E
   whenTrue: ASTNode;
   whenFalse: ASTNode;
 }
+
+export type ExpressionNode = NumberLiteralNode | StringLiteralNode | UnaryExpressionNode | BinaryExpressionNode | ConditionalExpressionNode;

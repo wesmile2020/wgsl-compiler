@@ -1,4 +1,4 @@
-export const OPERATOR_PRECEDENCE = {
+export const OPERATOR_PRECEDENCE: Record<string, number> = {
   // unary operators
   '!': 14,
   '~': 14,

@@ -16,7 +16,6 @@ export interface MacroExpandOutput {
 
 export class MacroExpansion {
   private _macros: Map<string, Macro> = new Map();
-  private _lexer: Lexer = new Lexer();
   private _errors: string[] = [];
 
   constructor(defines: string[]) {
@@ -170,7 +169,7 @@ export class MacroExpansion {
   }
 
   private _parseDefine(define: string): Macro | null {
-    const { tokens, errors } = this._lexer.tokenize(define);
+    const { tokens, errors } = new Lexer(define).tokenize();
     for (let i = 0; i < errors.length; i += 1) {
       this._errors.push(`Macro definition error: ${errors[i].message}`);
     }
@@ -224,7 +223,7 @@ export class MacroExpansion {
   expand(line: string): MacroExpandOutput {
     const initErrors = this._errors;
     this._errors = [];
-    const { tokens, errors } = this._lexer.tokenize(line);
+    const { tokens, errors } = new Lexer(line).tokenize();
     const output: MacroExpandOutput = {
       tokens: [],
       errors: [],
@@ -265,27 +264,3 @@ export class MacroExpansion {
     return output;
   }
 }
-
-// test macro expansion
-
-const defines = [
-  'DIST(x1, y1, x2, y2) SQUARE(SUB(x2, x1)) + SQUARE(SUB(y2, y1))',
-  'SUB(x, y) ((x) - (y))',
-  'MULTIPLY(x, y) ((x) * (y))',
-  'SQUARE(x) MULTIPLY(x, x)',
-  'VALUE_TWELVE VALUE_TEN + 2',
-  'VALUE_TEN 10',
-];
-
-const code = defines.join('\n');
-console.log(code);
-const start = performance.now();
-const lexer = new Lexer();
-const { tokens } = lexer.tokenize(code);
-console.log('tokens.length', tokens.length);
-console.log(`lexer spend ${performance.now() - start} ms`);
-
-// const expansion = new MacroExpansion(defines);
-
-// const out1 = expansion.expand('DIST(1, 2, 3, 4) + VALUE_TWELVE');
-// console.log(out1.tokens.map((item) => item.value).join(''));

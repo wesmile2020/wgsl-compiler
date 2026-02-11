@@ -1,5 +1,12 @@
+function INIT_KEYWORD_MAP(list: string[], record: Record<string, number>) {
+  for (let i = 0; i < list.length; i += 1) {
+    record[list[i]] = 1;
+  }
+}
+
 /** @type { TokenType.SYNTAX_KEYWORD } */
-export const SYNTAX_KEYWORDS: string[] = [
+export const SYNTAX_KEYWORDS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   'fn',
   'let',
   'var',
@@ -29,10 +36,11 @@ export const SYNTAX_KEYWORDS: string[] = [
   'struct',
   'true',
   'false',
-];
+], SYNTAX_KEYWORDS);
 
 /** @type { TokenType.TYPE_KEYWORD } */
-export const TYPE_KEYWORDS: string[] = [
+export const TYPE_KEYWORDS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   'i32',
   'u32',
   'f32',
@@ -70,10 +78,11 @@ export const TYPE_KEYWORDS: string[] = [
   'texture_depth_2d_array',
   'texture_depth_cube',
   'texture_depth_cube_array',
-];
+], TYPE_KEYWORDS);
 
 /** @type { TokenType.BUILTIN_FUNCTION } */
-export const BUILTIN_FUNCTIONS: string[] = [
+export const BUILTIN_FUNCTIONS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   'radians',
   'degrees',
   'sin',
@@ -169,10 +178,11 @@ export const BUILTIN_FUNCTIONS: string[] = [
   'select',
   'all',
   'any',
-];
+], BUILTIN_FUNCTIONS);
 
 /** @type { TokenType.BUILTIN_VALUE } */
-export const BUILTIN_VALUES: string[] = [
+export const BUILTIN_VALUES: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   'vertex_index',
   'instance_index',
   'position',
@@ -187,10 +197,11 @@ export const BUILTIN_VALUES: string[] = [
   'sample_mask',
   'subgroup_invocation_id',
   'subgroup_size',
-];
+], BUILTIN_VALUES);
 
 /** @type { TokenType.ATTRIBUTE } */
-export const ATTRIBUTES: string[] = [
+export const ATTRIBUTES: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   'vertex',
   'fragment',
   'compute',
@@ -217,14 +228,15 @@ export const ATTRIBUTES: string[] = [
   'storage_class',
   'type',
   'workgroup_size',
-];
+], ATTRIBUTES);
 
 /** @type { TokenType.OPERATOR } */
-export const THREE_CHAR_OPERATORS: string[] = ['<<=', '>>=', '...'];
+export const THREE_CHAR_OPERATORS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP(['<<=', '>>=', '...'], THREE_CHAR_OPERATORS);
 
 /** @type { TokenType.OPERATOR } */
-export const TWO_CHAR_OPERATORS: string[] = [
-  '==',
+export const TWO_CHAR_OPERATORS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP(['==',
   '!=',
   '<=',
   '>=',
@@ -242,10 +254,11 @@ export const TWO_CHAR_OPERATORS: string[] = [
   '&=',
   '^=',
   '|=',
-];
+], TWO_CHAR_OPERATORS);
 
 /** @type { TokenType.OPERATOR } */
-export const OPERATOR_CHARS: string[] = [
+export const ONE_CHAR_OPERATORS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([
   '=',
   '+',
   '-',
@@ -259,10 +272,12 @@ export const OPERATOR_CHARS: string[] = [
   '~',
   '.',
   '?',
-];
+], ONE_CHAR_OPERATORS);
 
 /** @type { TokenType.PUNCTUATION } */
-export const PUNCTUATION_CHARS: string[] = [',', ';', ':'];
+export const PUNCTUATION_CHARS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP([',', ';', ':'], PUNCTUATION_CHARS);
 
 /** @type { TokenType.BRACKET } */
-export const BRACKET_CHARS: string[] = ['(', ')', '[', ']', '{', '}', '<', '>'];
+export const BRACKET_CHARS: Record<string, number> = Object.create(null);
+INIT_KEYWORD_MAP(['(', ')', '[', ']', '{', '}', '<', '>'], BRACKET_CHARS);
