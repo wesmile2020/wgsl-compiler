@@ -56,7 +56,8 @@ export class Lexer {
       // skip whitespace
       if (code < 128 && CHAR_CODE_LOOKUP[code] & IS_WHITESPACE) {
         this._position += 1;
-        if (code === 10) { // \n
+        if (code === 10) {
+          // \n
           this._line += 1;
           this._column = 1;
         } else {
@@ -66,20 +67,23 @@ export class Lexer {
       }
 
       // deal comment
-      if (code === 47 && this._position + 1 < this._source.length) { // /
+      if (code === 47 && this._position + 1 < this._source.length) {
+        // /
         const nextCode = this._source.charCodeAt(this._position + 1);
         if (nextCode === 47) {
           tokens[tokens.length] = this._readLineComment();
           continue;
         }
-        if (nextCode === 42) { // *
+        if (nextCode === 42) {
+          // *
           tokens[tokens.length] = this._readBlockComment();
           continue;
         }
       }
 
       // deal attribute
-      if (code === 64) { // @
+      if (code === 64) {
+        // @
         const token = this._readAttribute();
         if (token) {
           tokens[tokens.length] = token;
@@ -96,11 +100,9 @@ export class Lexer {
       // deal number literal
       if (
         (code >= 48 && code <= 57) ||
-        (
-          code === 46 &&
+        (code === 46 &&
           this._position + 1 < this._source.length &&
-          REGEX_DIGIT.test(this._source[this._position + 1])
-        )
+          REGEX_DIGIT.test(this._source[this._position + 1]))
       ) {
         tokens[tokens.length] = this._readNumberLiteral();
         continue;
@@ -119,11 +121,15 @@ export class Lexer {
       if (token) {
         tokens[tokens.length] = token;
       } else {
-        this._addError(`Unexpected character '${this._source[this._position]}'`, this._line, this._column);
+        this._addError(
+          `Unexpected character '${this._source[this._position]}'`,
+          this._line,
+          this._column,
+        );
       }
     }
 
-    const eof = this._createToken(TokenType.EOF, '', this._position, this._line, this._column);
+    const eof = this._createToken(TokenType.EOF, '\0', this._position, this._line, this._column);
     tokens.push(eof);
 
     return { tokens, errors: this._errors };
@@ -231,8 +237,8 @@ export class Lexer {
             value += '"';
           } else if (next === '\\') {
             value += '\\';
-          } else if (next === '\'') {
-            value += '\'';
+          } else if (next === "'") {
+            value += "'";
           } else if (next === '0') {
             value += '\0';
           } else {
@@ -446,7 +452,8 @@ export class Lexer {
       }
       if (
         this._source[this._position] === '*' &&
-        (this._position + 1 < this._source.length && this._source[this._position + 1] === '/')
+        this._position + 1 < this._source.length &&
+        this._source[this._position + 1] === '/'
       ) {
         this._position += 2;
         this._column += 2;

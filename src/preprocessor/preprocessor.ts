@@ -1,4 +1,6 @@
+import { Parser } from '@/parser/Parser';
 import { MacroExpansion } from './MacroExpansion';
+import { evaluate } from './evaluate';
 import { shouldOutput } from './helper';
 
 export interface PreprocessOutput {
@@ -35,6 +37,39 @@ export function preprocess(source: string): PreprocessOutput {
 
   for (let i = 0; i < filters.length; i += 1) {
     if (filters[i].startsWith('///#if')) {
+      const condition = filters[i].slice(7).trim();
+      const expandOutput = expansion.expand(condition);
+      let ifValue = false;
+      if (expandOutput.errors.length > 0) {
+        errors.push(...expandOutput.errors);
+      } else {
+        const parseOutput = new Parser(expandOutput.tokens).parse();
+        if (parseOutput.errors.length > 0) {
+          for (let k = 0; k < parseOutput.errors.length; k += 1) {
+            errors.push(parseOutput.errors[k].message);
+          }
+        } else if (parseOutput.program.body.length > 0) {
+          const evaluateOutput = evaluate(parseOutput.program.body[0]);
+          if (evaluateOutput.errors.length > 0) {
+            errors.push(...evaluateOutput.errors);
+          } else {
+            ifValue = evaluateOutput.value !== 0;
+          }
+        }
+      }
+      ifStack.push(ifValue);
+      continue;
+    }
+    if (filters[i].startsWith('///#endif')) {
+      ifStack.pop();
+      continue;
+    }
+    if (filters[i].startsWith('///#else')) {
+      if (ifStack.length === 0) {
+        errors.push('Unexpected #else');
+      } else {
+        ifStack[ifStack.length - 1] = !ifStack[ifStack.length - 1];
+      }
       continue;
     }
 
@@ -42,7 +77,7 @@ export function preprocess(source: string): PreprocessOutput {
       output.push(filters[i]);
     }
   }
-
+  console.log(output.join('\n'), errors);
   return { code: output.join('\n'), errors };
 }
 
@@ -50,5 +85,8 @@ const code = `
 ///#define VALUE 10
 ///#define VALUE_2 (VALUE + 5)
 ///#define MAX(a, b) ((a) > (b) ? (a) : (b))
+///#if VALUE > 5
+console.log('Hello, World!');
+///#endif
 `;
 preprocess(code);

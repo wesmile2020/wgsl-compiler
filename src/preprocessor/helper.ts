@@ -6,10 +6,7 @@ export interface ParameterOutput {
   endIndex: number;
 }
 
-export function extractParameters(
-  tokens: Token[],
-  startIndex: number,
-): ParameterOutput | null {
+export function extractParameters(tokens: Token[], startIndex: number): ParameterOutput | null {
   if (startIndex < 0 || startIndex >= tokens.length) {
     return null;
   }

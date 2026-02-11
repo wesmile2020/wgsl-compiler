@@ -1,15 +1,19 @@
-import { ASTKind, type ASTNode, type BinaryExpressionNode, type BinaryOperator, type ExpressionNode, type NumberLiteralNode, type ParserError, type Position, type ProgramNode, type UnaryExpressionNode } from './ASTType';
+import {
+  ASTKind,
+  type ASTNode,
+  type IdentifierNode,
+  type NumberLiteralNode,
+  type ParserError,
+  type Position,
+  type ProgramNode,
+  type UnaryExpressionNode,
+} from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
 
 export interface ParserOutput {
   program: ProgramNode;
   errors: ParserError[];
-}
-
-interface ICheckItem {
-  type: TokenType;
-  value: string;
 }
 
 export class Parser {
@@ -22,7 +26,9 @@ export class Parser {
   }
 
   private _isEnd(): boolean {
-    return this._position >= this._tokens.length || this._tokens[this._position].type === TokenType.EOF;
+    return (
+      this._position >= this._tokens.length || this._tokens[this._position].type === TokenType.EOF
+    );
   }
 
   private _previous(): Token {
@@ -98,8 +104,7 @@ export class Parser {
     const startToken = this._current();
 
     while (!this._isEnd()) {
-      if (this._check(TokenType.PUNCTUATION, ';')) {
-        this._advance();
+      if (this._match(TokenType.PUNCTUATION, ';')) {
         continue;
       }
       body.push(this._parseExpression());
@@ -166,11 +171,23 @@ export class Parser {
   private _parsePrimary(): ASTNode {
     const startToken = this._current();
 
-    if (startToken.type === TokenType.FLOAT_LITERAL ||startToken.type === TokenType.INTEGER_LITERAL) {
+    if (
+      startToken.type === TokenType.FLOAT_LITERAL ||
+      startToken.type === TokenType.INTEGER_LITERAL
+    ) {
       this._advance();
       const node: NumberLiteralNode = {
         kind: ASTKind.NUMBER_LITERAL,
         value: Number(startToken.value),
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return node;
+    }
+    if (startToken.type === TokenType.IDENTIFIER || startToken.type === TokenType.BUILTIN_VALUE) {
+      this._advance();
+      const node: IdentifierNode = {
+        kind: ASTKind.IDENTIFIER,
+        name: startToken.value,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
       return node;
@@ -183,12 +200,10 @@ export class Parser {
     }
     if (
       startToken.type === TokenType.OPERATOR &&
-      (
-        startToken.value === '+' ||
+      (startToken.value === '+' ||
         startToken.value === '-' ||
         startToken.value === '!' ||
-        startToken.value === '~'
-      )
+        startToken.value === '~')
     ) {
       this._advance();
       const operand = this._parsePrimary();

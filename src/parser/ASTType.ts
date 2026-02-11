@@ -1,4 +1,4 @@
-import type { TokenType } from "@/lexer/TokenType";
+import { type TokenType } from '@/lexer/TokenType';
 
 export const enum ASTKind {
   ERROR,
@@ -8,6 +8,7 @@ export const enum ASTKind {
   UNARY_EXPRESSION,
   BINARY_EXPRESSION,
   CONDITIONAL_EXPRESSION,
+  IDENTIFIER,
 }
 
 export interface Position {
@@ -47,10 +48,11 @@ export interface UnaryExpressionNode extends ASTNode<ASTKind.UNARY_EXPRESSION> {
   operand: ASTNode;
 }
 
-export type BinaryOperator = '+' | '-' | '*' | '/' | '%' | // math operators
-  '&&' | '||' | // logical operators
-  '&' | '|' | '^' | '<<' | '>>' | // bitwise operators
-  '==' | '!=' | '<' | '>' | '<=' | '>='; // relational operators
+/* oxfmt-ignore */
+export type BinaryOperator = '+' | '-' | '*' | '/' | '%' // math operators
+  | '&&' | '||' // logical operators
+  | '&' | '|' | '^' | '<<' | '>>' // bitwise operators
+  | '==' | '!=' | '<' | '>' | '<=' | '>='; // relational operators
 
 export interface BinaryExpressionNode extends ASTNode<ASTKind.BINARY_EXPRESSION> {
   operator: BinaryOperator;
@@ -64,4 +66,6 @@ export interface ConditionalExpressionNode extends ASTNode<ASTKind.CONDITIONAL_E
   whenFalse: ASTNode;
 }
 
-export type ExpressionNode = NumberLiteralNode | StringLiteralNode | UnaryExpressionNode | BinaryExpressionNode | ConditionalExpressionNode;
+export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
+  name: string;
+}

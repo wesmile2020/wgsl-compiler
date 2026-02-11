@@ -170,6 +170,7 @@ export class MacroExpansion {
 
   private _parseDefine(define: string): Macro | null {
     const { tokens, errors } = new Lexer(define).tokenize();
+    tokens.pop(); // pop eof token
     for (let i = 0; i < errors.length; i += 1) {
       this._errors.push(`Macro definition error: ${errors[i].message}`);
     }
@@ -224,6 +225,7 @@ export class MacroExpansion {
     const initErrors = this._errors;
     this._errors = [];
     const { tokens, errors } = new Lexer(line).tokenize();
+    tokens.pop(); // pop eof token
     const output: MacroExpandOutput = {
       tokens: [],
       errors: [],
