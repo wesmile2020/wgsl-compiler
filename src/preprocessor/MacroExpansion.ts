@@ -217,6 +217,10 @@ export class MacroExpansion {
     return this._macros.get(name) || null;
   }
 
+  hasMacro(name: string): boolean {
+    return this._macros.has(name);
+  }
+
   getErrors(): string[] {
     return this._errors;
   }

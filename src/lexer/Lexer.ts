@@ -84,10 +84,7 @@ export class Lexer {
       // deal attribute
       if (code === 64) {
         // @
-        const token = this._readAttribute();
-        if (token) {
-          tokens[tokens.length] = token;
-        }
+        tokens[tokens.length]= this._readAttribute();
         continue;
       }
 
@@ -110,23 +107,11 @@ export class Lexer {
 
       // deal string literal
       if (code === 34 || code === 39) {
-        const token = this._readStringLiteral(this._source[this._position]);
-        if (token) {
-          tokens[tokens.length] = token;
-        }
+        tokens[tokens.length] = this._readStringLiteral(this._source[this._position]);
         continue;
       }
 
-      const token = this._readOperatorOrPunctuation();
-      if (token) {
-        tokens[tokens.length] = token;
-      } else {
-        this._addError(
-          `Unexpected character '${this._source[this._position]}'`,
-          this._line,
-          this._column,
-        );
-      }
+      tokens[tokens.length] = this._readOperatorOrPunctuation();
     }
 
     const eof = this._createToken(TokenType.EOF, '\0', this._position, this._line, this._column);
@@ -135,7 +120,7 @@ export class Lexer {
     return { tokens, errors: this._errors };
   }
 
-  private _readOperatorOrPunctuation(): Token | null {
+  private _readOperatorOrPunctuation(): Token {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -153,7 +138,7 @@ export class Lexer {
     }
     // three operators
     if (this._position + 2 < this._source.length) {
-      const threeChar = this._source.slice(this._position, this._position + 2);
+      const threeChar = this._source.slice(this._position, this._position + 3);
       if (threeChar in THREE_CHAR_OPERATORS) {
         this._position += 3;
         this._column += 3;
@@ -162,7 +147,7 @@ export class Lexer {
     }
     // two operators
     if (this._position + 1 < this._source.length) {
-      const twoChar = this._source.slice(this._position, this._position + 1);
+      const twoChar = this._source.slice(this._position, this._position + 2);
       if (twoChar in TWO_CHAR_OPERATORS) {
         this._position += 2;
         this._column += 2;
@@ -176,7 +161,11 @@ export class Lexer {
       return this._createToken(TokenType.OPERATOR, char, start, startLine, startColumn);
     }
 
-    return null;
+    this._addError(`Unexpected character '${this._source[this._position]}'`, this._line, this._column);
+    this._position += 1;
+    this._column += 1;
+
+    return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
   }
 
   private _addError(message: string, line?: number, column?: number): void {
@@ -205,7 +194,7 @@ export class Lexer {
     };
   }
 
-  private _readStringLiteral(quote: string): Token | null {
+  private _readStringLiteral(quote: string): Token {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -256,7 +245,7 @@ export class Lexer {
 
     if (!isEnd) {
       this._addError('Unterminated string literal', startLine, startColumn);
-      return null;
+      return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
     }
 
     return this._createToken(
@@ -390,7 +379,7 @@ export class Lexer {
     return this._createToken(type, value, start, startLine, startColumn);
   }
 
-  private _readAttribute(): Token | null {
+  private _readAttribute(): Token {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -410,7 +399,7 @@ export class Lexer {
     const value = this._source.slice(start + 1, this._position);
     if (!(value in ATTRIBUTES)) {
       this._addError(`Unknown attribute '${value}'`, startLine, startColumn);
-      return null;
+      return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
     }
 
     return this._createToken(TokenType.ATTRIBUTE, value, start, startLine, startColumn);

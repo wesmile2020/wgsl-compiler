@@ -278,7 +278,7 @@ INIT_KEYWORD_MAP(
 /** @type { TokenType.OPERATOR } */
 export const ONE_CHAR_OPERATORS: Record<string, number> = Object.create(null);
 INIT_KEYWORD_MAP(
-  ['=', '+', '-', '*', '/', '%', '!', '&', '|', '^', '~', '.', '?'],
+  ['=', '+', '-', '*', '/', '%', '!', '&', '|', '^', '~', '.', '?', '<', '>'],
   ONE_CHAR_OPERATORS,
 );
 
@@ -288,4 +288,4 @@ INIT_KEYWORD_MAP([',', ';', ':'], PUNCTUATION_CHARS);
 
 /** @type { TokenType.BRACKET } */
 export const BRACKET_CHARS: Record<string, number> = Object.create(null);
-INIT_KEYWORD_MAP(['(', ')', '[', ']', '{', '}', '<', '>'], BRACKET_CHARS);
+INIT_KEYWORD_MAP(['(', ')', '[', ']', '{', '}'], BRACKET_CHARS);

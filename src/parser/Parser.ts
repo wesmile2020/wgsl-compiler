@@ -107,7 +107,7 @@ export class Parser {
       if (this._match(TokenType.PUNCTUATION, ';')) {
         continue;
       }
-      body.push(this._parseExpression());
+      body.push(this._parseAssignmentOrExpression());
     }
 
     const program: ProgramNode = {
@@ -116,6 +116,40 @@ export class Parser {
       position: this._createPosition(startToken.start, this._previous().end, startToken),
     };
     return { program, errors: this._errors };
+  }
+
+  private _parseAssignmentOrExpression(): ASTNode {
+    const startToken = this._current();
+    const expression = this._parseExpression();
+    if (
+      this._check(TokenType.OPERATOR, '=') ||
+      this._check(TokenType.OPERATOR, '+=') ||
+      this._check(TokenType.OPERATOR, '-=') ||
+      this._check(TokenType.OPERATOR, '*=') ||
+      this._check(TokenType.OPERATOR, '/=') ||
+      this._check(TokenType.OPERATOR, '%=') ||
+      this._check(TokenType.OPERATOR, '&=') ||
+      this._check(TokenType.OPERATOR, '|=') ||
+      this._check(TokenType.OPERATOR, '^=') ||
+      this._check(TokenType.OPERATOR, '<<=') ||
+      this._check(TokenType.OPERATOR, '>>=')
+    ) {
+      const operator = this._advance().value;
+      const right = this._parseExpression();
+      const nextNode = {
+        kind: ASTKind.ASSIGNMENT,
+        left: expression,
+        operator,
+        right,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return nextNode;
+    }
+    if (this._check(TokenType.PUNCTUATION, ',')) {
+
+    }
+
+    return expression;
   }
 
   private _parseExpression(): ASTNode {
@@ -183,6 +217,21 @@ export class Parser {
       };
       return node;
     }
+    if (
+      startToken.type === TokenType.SYNTAX_KEYWORD &&
+      (
+        startToken.value === 'true' ||
+        startToken.value === 'false'
+      )
+    ) {
+      this._advance();
+      const node: NumberLiteralNode = {
+        kind: ASTKind.NUMBER_LITERAL,
+        value: startToken.value === 'true' ? 1 : 0,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return node;
+    }
     if (startToken.type === TokenType.IDENTIFIER || startToken.type === TokenType.BUILTIN_VALUE) {
       this._advance();
       const node: IdentifierNode = {
@@ -216,7 +265,8 @@ export class Parser {
       return node;
     }
 
-    this._addError(`Unexpected token in primary expression ${startToken.value}`);
+    this._advance();
+    this._addError(`Unexpected token '${startToken.value}' in primary expression`);
 
     return {
       kind: ASTKind.ERROR,

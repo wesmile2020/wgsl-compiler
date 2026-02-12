@@ -9,6 +9,7 @@ export const enum ASTKind {
   BINARY_EXPRESSION,
   CONDITIONAL_EXPRESSION,
   IDENTIFIER,
+  ASSIGNMENT,
 }
 
 export interface Position {
@@ -68,4 +69,15 @@ export interface ConditionalExpressionNode extends ASTNode<ASTKind.CONDITIONAL_E
 
 export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
   name: string;
+}
+
+/* oxfmt-ignore */
+export type AssignmentOperator = '=' | '+=' | '-=' | '*=' | '/=' | '%='  // math assignment operators
+  | '&=' | '|=' | '^=' // bitwise assignment operators
+  | '<<=' | '>>='; // shift assignment operators
+
+export interface AssignmentNode extends ASTNode<ASTKind.ASSIGNMENT> {
+  left: ASTNode;
+  right: ASTNode;
+  operator: AssignmentOperator;
 }
