@@ -84,7 +84,7 @@ export class Lexer {
       // deal attribute
       if (code === 64) {
         // @
-        tokens[tokens.length]= this._readAttribute();
+        tokens[tokens.length] = this._readAttribute();
         continue;
       }
 
@@ -161,7 +161,11 @@ export class Lexer {
       return this._createToken(TokenType.OPERATOR, char, start, startLine, startColumn);
     }
 
-    this._addError(`Unexpected character '${this._source[this._position]}'`, this._line, this._column);
+    this._addError(
+      `Unexpected character '${this._source[this._position]}'`,
+      this._line,
+      this._column,
+    );
     this._position += 1;
     this._column += 1;
 
@@ -248,13 +252,7 @@ export class Lexer {
       return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
     }
 
-    return this._createToken(
-      TokenType.STRING_LITERAL,
-      this._source.substring(start + 1, this._position),
-      start,
-      startLine,
-      startColumn,
-    );
+    return this._createToken(TokenType.STRING_LITERAL, value, start, startLine, startColumn);
   }
 
   private _readNumberLiteral(): Token {

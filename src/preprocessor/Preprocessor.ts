@@ -156,7 +156,7 @@ interface PreprocessOptions {
     elifndef: string;
     else: string;
     endif: string;
-  }
+  };
 }
 
 const defaultOptions: PreprocessOptions = {
@@ -270,7 +270,10 @@ export class Preprocessor {
           errors.push('Unexpected #elif');
         } else {
           const expression = line.slice(alias.elif.length).trim();
-          const { value: elifValue, errors: elifErrors } = evaluateExpression(expansion, expression);
+          const { value: elifValue, errors: elifErrors } = evaluateExpression(
+            expansion,
+            expression,
+          );
           errors.push(...elifErrors);
           const active = elifValue && !ifStack[ifStack.length - 1].value;
           ifStack[ifStack.length - 1].active = active;

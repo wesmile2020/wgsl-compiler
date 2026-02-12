@@ -27,7 +27,7 @@ fn main(input: VertexInput) -> VertexOutput {
   output.position = u_projectionMatrix * u_modelViewMatrix * input.a_position;
   return output;
 }
-`
+`;
 
 const preprocessor = new Preprocessor(code, {
   alias: {
@@ -40,7 +40,7 @@ const preprocessor = new Preprocessor(code, {
     elifdef: '#elifdef',
     elifndef: '#elifndef',
     elif: '#elif',
-  }
+  },
 });
 
 const { code: processedCode } = preprocessor.process();

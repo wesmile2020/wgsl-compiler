@@ -120,7 +120,7 @@ export class Parser {
 
   private _parseAssignmentOrExpression(): ASTNode {
     const startToken = this._current();
-    const expression = this._parseExpression();
+    let expression = this._parseExpression();
     if (
       this._check(TokenType.OPERATOR, '=') ||
       this._check(TokenType.OPERATOR, '+=') ||
@@ -143,12 +143,14 @@ export class Parser {
         right,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
-      return nextNode;
+      expression = nextNode;
     }
     if (this._check(TokenType.PUNCTUATION, ',')) {
-
     }
-
+    if (this._check(TokenType.PUNCTUATION, ';')) {
+      this._advance();
+      expression.position.end = this._previous().end;
+    }
     return expression;
   }
 
@@ -219,10 +221,7 @@ export class Parser {
     }
     if (
       startToken.type === TokenType.SYNTAX_KEYWORD &&
-      (
-        startToken.value === 'true' ||
-        startToken.value === 'false'
-      )
+      (startToken.value === 'true' || startToken.value === 'false')
     ) {
       this._advance();
       const node: NumberLiteralNode = {
