@@ -1,0 +1,62 @@
+.tree {
+  padding-left: 20px;
+  font-family: 'cascadia code', monospace;
+  overflow: auto;
+  max-height: 100%;
+}
+
+.item {
+  position: relative;
+  padding: 5px;
+}
+
+.item.opened::before {
+  content: '-';
+  color: red;
+  position: absolute;
+  left: -10px;
+}
+
+.item.closed::before {
+  content: '+';
+  color: green;
+  position: absolute;
+  left: -10px;
+}
+
+.name {
+  color: #268BD2;
+  font-size: 14px;
+  margin-right: 5px;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  text-decoration: underline;
+}
+
+.gray {
+  color: #93A1A1;
+}
+
+.properties {
+  font-size: 12px;
+  font-style: italic;
+  margin: 0 2px;
+}
+
+.treeBody {
+  padding-left: 20px;
+}
+
+.key {
+  color: #B58900;
+  margin-right: 5px;
+}
+
+.value {
+  color: #2AA198;
+}

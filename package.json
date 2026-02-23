@@ -32,6 +32,7 @@
     }
   },
   "scripts": {
+    "dev": "vite -c vite.preview.config.ts",
     "build": "vite build && npm run typings",
     "typings": "extract-typings -e src/index.ts -o dist/typings -f index",
     "lint": "oxlint",
@@ -43,9 +44,15 @@
     "oxfmt": "^0.26.0",
     "oxlint": "^1.41.0",
     "typescript": "~5.9.3",
-    "vite": "8.0.0-beta.8"
+    "vite": "8.0.0-beta.8",
+    "vite-plugin-solid": "^2.11.10"
   },
   "overrides": {
     "vite": "8.0.0-beta.8"
+  },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "monaco-editor": "^0.55.1",
+    "solid-js": "^1.9.11"
   }
 }
