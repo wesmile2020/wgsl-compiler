@@ -7,10 +7,15 @@ import {
   type ConditionalExpressionNode,
   type IdentifierNode,
   type ExpressionStatementNode,
+  type MemberExpressionNode,
 } from './ASTType';
 
 export function isNumberLiteral(node: ASTNode): node is NumberLiteralNode {
   return node.kind === ASTKind.NUMBER_LITERAL;
+}
+
+export function isIdentifier(node: ASTNode): node is IdentifierNode {
+  return node.kind === ASTKind.IDENTIFIER;
 }
 
 export function isUnaryExpression(node: ASTNode): node is UnaryExpressionNode {
@@ -25,8 +30,8 @@ export function isConditionalExpression(node: ASTNode): node is ConditionalExpre
   return node.kind === ASTKind.CONDITIONAL_EXPRESSION;
 }
 
-export function isIdentifier(node: ASTNode): node is IdentifierNode {
-  return node.kind === ASTKind.IDENTIFIER;
+export function isMemberExpression(node: ASTNode): node is MemberExpressionNode {
+  return node.kind === ASTKind.MEMBER_EXPRESSION;
 }
 
 export function isExpressionStatement(node: ASTNode): node is ExpressionStatementNode {
