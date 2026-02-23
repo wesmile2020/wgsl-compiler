@@ -85,7 +85,6 @@ export interface ConditionalExpressionNode extends ASTNode<ASTKind.CONDITIONAL_E
   whenFalse: ASTNode;
 }
 
-
 export interface MemberExpressionNode extends ASTNode<ASTKind.MEMBER_EXPRESSION> {
   object: ASTNode;
   property: ASTNode;

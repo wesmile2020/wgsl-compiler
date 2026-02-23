@@ -1,29 +1,29 @@
-import { createSignal, type JSX } from "solid-js";
-import { type IRange } from "monaco-editor";
-import { type ASTNode, Lexer, Parser, ASTKind, type Position } from "@/index";
-import EditorView from "./components/EditorView";
-import ASTView from "./components/ASTView";
-import { camelCaseIdentifier } from "./utils/utils";
+import { createSignal, type JSX } from 'solid-js';
+import { type IRange } from 'monaco-editor';
+import { type ASTNode, Lexer, Parser, ASTKind, type Position } from '@/index';
+import EditorView from './components/EditorView';
+import ASTView from './components/ASTView';
+import { camelCaseIdentifier } from './utils/utils';
 
-import styles from "./App.module.css";
+import styles from './App.module.css';
 
 function App(): JSX.Element {
   const [activeRange, setActiveRange] = createSignal<IRange>();
   const [ast, setAst] = createSignal<object | null>(null);
-  let globalCode: string = "";
+  let globalCode: string = '';
 
   function onCodeChange(code: string) {
     globalCode = code;
 
     const lexerOutput = new Lexer(code).tokenize();
     if (lexerOutput.errors.length !== 0) {
-      console.error("Lexer errors:", lexerOutput.errors);
+      console.error('Lexer errors:', lexerOutput.errors);
       setAst(null);
       return;
     }
     const parserOutput = new Parser(lexerOutput.tokens).parse();
     if (parserOutput.errors.length !== 0) {
-      console.error("Parser errors:", parserOutput.errors);
+      console.error('Parser errors:', parserOutput.errors);
       setAst(null);
       return;
     }
@@ -31,12 +31,12 @@ function App(): JSX.Element {
   }
 
   function getTokenName(node: object): string {
-    if ("line" in node) {
-      return "Position";
+    if ('line' in node) {
+      return 'Position';
     }
 
-    if (!("kind" in node)) {
-      return "Unknown";
+    if (!('kind' in node)) {
+      return 'Unknown';
     }
 
     const ast = node as ASTNode;
@@ -44,7 +44,7 @@ function App(): JSX.Element {
   }
 
   function onFocused(node: object) {
-    if (!("position" in node)) {
+    if (!('position' in node)) {
       return;
     }
     const { line, column, start, end } = node.position as Position;
@@ -53,7 +53,7 @@ function App(): JSX.Element {
     let endLineNumber = line;
     let endColumn = column;
     for (let i = start; i < end; i += 1) {
-      if (globalCode[i] === "\n") {
+      if (globalCode[i] === '\n') {
         endLineNumber += 1;
         endColumn = 1;
       } else {

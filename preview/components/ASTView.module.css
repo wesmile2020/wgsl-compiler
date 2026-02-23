@@ -25,7 +25,7 @@
 }
 
 .name {
-  color: #268BD2;
+  color: #268bd2;
   font-size: 14px;
   margin-right: 5px;
 }
@@ -39,7 +39,7 @@
 }
 
 .gray {
-  color: #93A1A1;
+  color: #93a1a1;
 }
 
 .properties {
@@ -53,10 +53,10 @@
 }
 
 .key {
-  color: #B58900;
+  color: #b58900;
   margin-right: 5px;
 }
 
 .value {
-  color: #2AA198;
+  color: #2aa198;
 }

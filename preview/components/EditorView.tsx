@@ -58,9 +58,5 @@ export default function EditorView(props: Props): JSX.Element {
     ),
   );
 
-  return (
-    <div ref={container}
-      class={styles.container}>
-    </div>
-  );
+  return <div ref={container} class={styles.container}></div>;
 }

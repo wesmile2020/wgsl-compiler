@@ -38,6 +38,11 @@
     "lint": "oxlint",
     "format": "oxfmt"
   },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "monaco-editor": "^0.55.1",
+    "solid-js": "^1.9.11"
+  },
   "devDependencies": {
     "@types/node": "^25.0.9",
     "extract-typings": "^1.0.2",
@@ -49,10 +54,5 @@
   },
   "overrides": {
     "vite": "8.0.0-beta.8"
-  },
-  "dependencies": {
-    "classnames": "^2.5.1",
-    "monaco-editor": "^0.55.1",
-    "solid-js": "^1.9.11"
   }
 }
