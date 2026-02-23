@@ -1,11 +1,13 @@
 import {
   ASTKind,
   type ASTNode,
+  type ExpressionStatementNode,
   type IdentifierNode,
   type NumberLiteralNode,
   type ParserError,
   type Position,
   type ProgramNode,
+  type SequenceExpressionNode,
   type UnaryExpressionNode,
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
@@ -107,7 +109,7 @@ export class Parser {
       if (this._match(TokenType.PUNCTUATION, ';')) {
         continue;
       }
-      body.push(this._parseAssignmentOrExpression());
+      body.push(this._parseExpressionStatement());
     }
 
     const program: ProgramNode = {
@@ -116,6 +118,35 @@ export class Parser {
       position: this._createPosition(startToken.start, this._previous().end, startToken),
     };
     return { program, errors: this._errors };
+  }
+
+  private _parseExpressionStatement(): ExpressionStatementNode {
+    const startToken = this._current();
+    let expression = this._parseAssignmentOrExpression();
+
+    if (this._check(TokenType.PUNCTUATION, ',')) {
+      const expressions: ASTNode[] = [expression];
+      while (this._check(TokenType.PUNCTUATION, ',')) {
+        this._advance();
+        const nextExpression = this._parseAssignmentOrExpression();
+        expressions.push(nextExpression);
+      }
+      const nextNode: SequenceExpressionNode = {
+        kind: ASTKind.SEQUENCE_EXPRESSION,
+        expressions,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      expression = nextNode;
+    }
+    if (this._check(TokenType.PUNCTUATION, ';')) {
+      this._advance();
+    }
+    const state: ExpressionStatementNode = {
+      kind: ASTKind.EXPRESSION_STATEMENT,
+      expression,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return state;
   }
 
   private _parseAssignmentOrExpression(): ASTNode {
@@ -144,12 +175,6 @@ export class Parser {
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
       expression = nextNode;
-    }
-    if (this._check(TokenType.PUNCTUATION, ',')) {
-    }
-    if (this._check(TokenType.PUNCTUATION, ';')) {
-      this._advance();
-      expression.position.end = this._previous().end;
     }
     return expression;
   }

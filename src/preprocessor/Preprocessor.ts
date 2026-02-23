@@ -7,6 +7,7 @@ import {
   isConditionalExpression,
   isUnaryExpression,
   isIdentifier,
+  isExpressionStatement,
 } from '@/parser/helper';
 
 export interface PreprocessOutput {
@@ -25,6 +26,10 @@ interface ASTNodeOutput {
 }
 
 function evaluateASTNode(node: ASTNode): ASTNodeOutput {
+  if (isExpressionStatement(node)) {
+    return evaluateASTNode(node.expression);
+  }
+
   if (isNumberLiteral(node)) {
     return { value: node.value, errors: [] };
   }
@@ -227,17 +232,8 @@ export class Preprocessor {
     const ifStack: StackState[] = [];
     const errors: string[] = [...expansion.getErrors()];
     let flag = true;
-
     for (let i = 0; i < filters.length; i += 1) {
       const line = filters[i].trim();
-      if (line.startsWith(alias.if)) {
-        const expression = line.slice(alias.if.length).trim();
-        const { value: ifValue, errors: ifErrors } = evaluateExpression(expansion, expression);
-        errors.push(...ifErrors);
-        ifStack.push({ active: ifValue, value: ifValue });
-        flag = shouldOutput(ifStack);
-        continue;
-      }
       if (line.startsWith(alias.ifdef)) {
         const identifier = line.slice(alias.ifdef.length).trim();
         const ifdefValue = expansion.hasMacro(identifier);
@@ -252,30 +248,19 @@ export class Preprocessor {
         flag = shouldOutput(ifStack);
         continue;
       }
+      if (line.startsWith(alias.if)) {
+        const expression = line.slice(alias.if.length).trim();
+        const { value: ifValue, errors: ifErrors } = evaluateExpression(expansion, expression);
+        errors.push(...ifErrors);
+        ifStack.push({ active: ifValue, value: ifValue });
+        flag = shouldOutput(ifStack);
+        continue;
+      }
       if (line.startsWith(alias.else)) {
         if (ifStack.length === 0) {
           errors.push('Unexpected #else');
         } else {
           const active = !ifStack[ifStack.length - 1].value;
-          ifStack[ifStack.length - 1].active = active;
-          if (active) {
-            ifStack[ifStack.length - 1].value = true;
-          }
-          flag = shouldOutput(ifStack);
-        }
-        continue;
-      }
-      if (line.startsWith(alias.elif)) {
-        if (ifStack.length === 0) {
-          errors.push('Unexpected #elif');
-        } else {
-          const expression = line.slice(alias.elif.length).trim();
-          const { value: elifValue, errors: elifErrors } = evaluateExpression(
-            expansion,
-            expression,
-          );
-          errors.push(...elifErrors);
-          const active = elifValue && !ifStack[ifStack.length - 1].value;
           ifStack[ifStack.length - 1].active = active;
           if (active) {
             ifStack[ifStack.length - 1].value = true;
@@ -306,6 +291,25 @@ export class Preprocessor {
           const identifier = line.slice(alias.elifndef.length).trim();
           const elifndefValue = !expansion.hasMacro(identifier);
           const active = elifndefValue && !ifStack[ifStack.length - 1].value;
+          ifStack[ifStack.length - 1].active = active;
+          if (active) {
+            ifStack[ifStack.length - 1].value = true;
+          }
+          flag = shouldOutput(ifStack);
+        }
+        continue;
+      }
+      if (line.startsWith(alias.elif)) {
+        if (ifStack.length === 0) {
+          errors.push('Unexpected #elif');
+        } else {
+          const expression = line.slice(alias.elif.length).trim();
+          const { value: elifValue, errors: elifErrors } = evaluateExpression(
+            expansion,
+            expression,
+          );
+          errors.push(...elifErrors);
+          const active = elifValue && !ifStack[ifStack.length - 1].value;
           ifStack[ifStack.length - 1].active = active;
           if (active) {
             ifStack[ifStack.length - 1].value = true;

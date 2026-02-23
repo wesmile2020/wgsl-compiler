@@ -6,6 +6,7 @@ import {
   type BinaryExpressionNode,
   type ConditionalExpressionNode,
   type IdentifierNode,
+  type ExpressionStatementNode,
 } from './ASTType';
 
 export function isNumberLiteral(node: ASTNode): node is NumberLiteralNode {
@@ -26,4 +27,8 @@ export function isConditionalExpression(node: ASTNode): node is ConditionalExpre
 
 export function isIdentifier(node: ASTNode): node is IdentifierNode {
   return node.kind === ASTKind.IDENTIFIER;
+}
+
+export function isExpressionStatement(node: ASTNode): node is ExpressionStatementNode {
+  return node.kind === ASTKind.EXPRESSION_STATEMENT;
 }

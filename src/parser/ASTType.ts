@@ -1,15 +1,18 @@
 import { type TokenType } from '@/lexer/TokenType';
 
-export const enum ASTKind {
+export enum ASTKind {
   ERROR,
   PROGRAM,
   NUMBER_LITERAL,
   STRING_LITERAL,
+  IDENTIFIER,
+  ASSIGNMENT,
   UNARY_EXPRESSION,
   BINARY_EXPRESSION,
   CONDITIONAL_EXPRESSION,
-  IDENTIFIER,
-  ASSIGNMENT,
+  MEMBER_EXPRESSION,
+  SEQUENCE_EXPRESSION,
+  EXPRESSION_STATEMENT,
 }
 
 export interface Position {
@@ -42,6 +45,21 @@ export interface StringLiteralNode extends ASTNode<ASTKind.STRING_LITERAL> {
   value: string;
 }
 
+export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
+  name: string;
+}
+
+/* oxfmt-ignore */
+export type AssignmentOperator = '=' | '+=' | '-=' | '*=' | '/=' | '%='  // math assignment operators
+  | '&=' | '|=' | '^=' // bitwise assignment operators
+  | '<<=' | '>>='; // shift assignment operators
+
+export interface AssignmentNode extends ASTNode<ASTKind.ASSIGNMENT> {
+  left: ASTNode;
+  right: ASTNode;
+  operator: AssignmentOperator;
+}
+
 type UnaryOperator = '+' | '-' | '!' | '~';
 
 export interface UnaryExpressionNode extends ASTNode<ASTKind.UNARY_EXPRESSION> {
@@ -67,17 +85,16 @@ export interface ConditionalExpressionNode extends ASTNode<ASTKind.CONDITIONAL_E
   whenFalse: ASTNode;
 }
 
-export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
-  name: string;
+
+export interface MemberExpressionNode extends ASTNode<ASTKind.MEMBER_EXPRESSION> {
+  object: ASTNode;
+  property: ASTNode;
 }
 
-/* oxfmt-ignore */
-export type AssignmentOperator = '=' | '+=' | '-=' | '*=' | '/=' | '%='  // math assignment operators
-  | '&=' | '|=' | '^=' // bitwise assignment operators
-  | '<<=' | '>>='; // shift assignment operators
+export interface SequenceExpressionNode extends ASTNode<ASTKind.SEQUENCE_EXPRESSION> {
+  expressions: ASTNode[];
+}
 
-export interface AssignmentNode extends ASTNode<ASTKind.ASSIGNMENT> {
-  left: ASTNode;
-  right: ASTNode;
-  operator: AssignmentOperator;
+export interface ExpressionStatementNode extends ASTNode<ASTKind.EXPRESSION_STATEMENT> {
+  expression: ASTNode;
 }

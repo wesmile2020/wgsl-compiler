@@ -1,4 +1,4 @@
-export const enum TokenType {
+export enum TokenType {
   ERROR,
   SYNTAX_KEYWORD,
   TYPE_KEYWORD,

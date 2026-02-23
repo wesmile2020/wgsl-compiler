@@ -1,11 +1,13 @@
 import { Preprocessor, Lexer } from '@/index';
 
-const code = `@group(0) @binding(0) var<uniform> u_projectionMatrix: mat4x4<f32>;
+const code = `
+#define USE_TEXTURE 10
+@group(0) @binding(0) var<uniform> u_projectionMatrix: mat4x4<f32>;
 @group(0) @binding(1) var<uniform> u_modelViewMatrix: mat4x4<f32>;
 
 struct VertexInput {
   @location(0) a_position: vec4<f32>,
-#ifdef USE_TEXTURE
+#if USE_TEXTURE + 2 / (5 + 5)
   @location(1) a_uv: vec2<f32>,
 #endif
 };
@@ -51,6 +53,6 @@ for (let i = 0; i < errors.length; i += 1) {
   console.log(errors[i].message);
 }
 for (let i = 0; i < tokens.length; i += 1) {
-  console.log(tokens[i].type, tokens[i].value);
+  // console.log(tokens[i].type, tokens[i].value);
 }
 console.log('tokens length:', tokens.length);
