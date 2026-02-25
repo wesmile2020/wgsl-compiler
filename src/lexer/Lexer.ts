@@ -430,7 +430,7 @@ export class Lexer {
 
     let isEnd = false;
 
-    while (this._position < this._source.length) {
+    while (this._position + 1 < this._source.length) {
       if (this._source[this._position] === '\n') {
         this._line += 1;
         this._column = 1;
@@ -439,7 +439,6 @@ export class Lexer {
       }
       if (
         this._source[this._position] === '*' &&
-        this._position + 1 < this._source.length &&
         this._source[this._position + 1] === '/'
       ) {
         this._position += 2;
@@ -447,6 +446,7 @@ export class Lexer {
         isEnd = true;
         break;
       }
+      this._position += 1;
     }
 
     if (!isEnd) {
