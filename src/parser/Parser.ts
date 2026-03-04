@@ -5,6 +5,7 @@ import {
   type ASTNode,
   type BinaryExpressionNode,
   type BinaryOperator,
+  type BooleanLiteralNode,
   type ConditionalExpressionNode,
   type ExpressionStatementNode,
   type IdentifierNode,
@@ -14,7 +15,9 @@ import {
   type Position,
   type ProgramNode,
   type SequenceExpressionNode,
+  type StringLiteralNode,
   type UnaryExpressionNode,
+  type UnaryOperator,
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
@@ -60,12 +63,12 @@ export class Parser {
     return this._previous();
   }
 
-  private _check(type: TokenType, value: string): boolean {
+  private _check(type: TokenType): boolean {
     if (this._position >= this._tokens.length) {
       return false;
     }
     const token = this._tokens[this._position];
-    return token.type === type && token.value === value;
+    return token.type === type;
   }
 
   private _addError(message: string, expected?: TokenType[]): void {
@@ -82,18 +85,20 @@ export class Parser {
     });
   }
 
-  private _expect(type: TokenType, value: string, message: string): Token {
-    if (this._check(type, value)) {
+  private _expect(type: TokenType, message: string): Token {
+    if (this._check(type)) {
       return this._advance();
     }
     this._addError(message, [type]);
     return this._current();
   }
 
-  private _match(type: TokenType, value: string): boolean {
-    if (this._check(type, value)) {
-      this._advance();
-      return true;
+  private _match(...types: TokenType[]): boolean {
+    for (let i = 0; i < types.length; i++) {
+      if (this._check(types[i])) {
+        this._advance();
+        return true;
+      }
     }
     return false;
   }
@@ -112,7 +117,7 @@ export class Parser {
     const startToken = this._current();
 
     while (!this._isEnd()) {
-      if (this._match(TokenType.PUNCTUATION, ';')) {
+      if (this._match(TokenType.SEMICOLON)) {
         continue;
       }
       body.push(this._parseExpressionStatement());
@@ -130,9 +135,9 @@ export class Parser {
     const startToken = this._current();
     let expression = this._parseAssignmentOrExpression();
 
-    if (this._check(TokenType.PUNCTUATION, ',')) {
+    if (this._check(TokenType.COMMA)) {
       const expressions: ASTNode[] = [expression];
-      while (this._check(TokenType.PUNCTUATION, ',')) {
+      while (this._check(TokenType.COMMA)) {
         this._advance();
         const nextExpression = this._parseAssignmentOrExpression();
         expressions.push(nextExpression);
@@ -144,7 +149,7 @@ export class Parser {
       };
       expression = nextNode;
     }
-    if (this._check(TokenType.PUNCTUATION, ';')) {
+    if (this._check(TokenType.SEMICOLON)) {
       this._advance();
     }
     const state: ExpressionStatementNode = {
@@ -159,17 +164,17 @@ export class Parser {
     const startToken = this._current();
     let expression = this._parseExpression();
     if (
-      this._check(TokenType.OPERATOR, '=') ||
-      this._check(TokenType.OPERATOR, '+=') ||
-      this._check(TokenType.OPERATOR, '-=') ||
-      this._check(TokenType.OPERATOR, '*=') ||
-      this._check(TokenType.OPERATOR, '/=') ||
-      this._check(TokenType.OPERATOR, '%=') ||
-      this._check(TokenType.OPERATOR, '&=') ||
-      this._check(TokenType.OPERATOR, '|=') ||
-      this._check(TokenType.OPERATOR, '^=') ||
-      this._check(TokenType.OPERATOR, '<<=') ||
-      this._check(TokenType.OPERATOR, '>>=')
+      this._check(TokenType.EQUALS) ||
+      this._check(TokenType.PLUS_EQUALS) ||
+      this._check(TokenType.MINUS_EQUALS) ||
+      this._check(TokenType.STAR_EQUALS) ||
+      this._check(TokenType.SLASH_EQUALS) ||
+      this._check(TokenType.MODULUS_EQUALS) ||
+      this._check(TokenType.AND_EQUALS) ||
+      this._check(TokenType.OR_EQUALS) ||
+      this._check(TokenType.XOR_EQUALS) ||
+      this._check(TokenType.SHIFT_LEFT_EQUALS) ||
+      this._check(TokenType.SHIFT_RIGHT_EQUALS)
     ) {
       const operator = this._advance().value;
       const right = this._parseExpression();
@@ -189,10 +194,10 @@ export class Parser {
     const startToken = this._current();
 
     let node = this._parseBinary();
-    if (this._check(TokenType.OPERATOR, '?')) {
+    if (this._check(TokenType.QUESTION)) {
       this._advance();
       const whenTrue = this._parseExpression();
-      this._expect(TokenType.PUNCTUATION, ':', `Expected ':' on conditional expression`);
+      this._expect(TokenType.COLON, `Expected ':' on conditional expression`);
       const whenFalse = this._parseExpression();
       const nextNode: ConditionalExpressionNode = {
         kind: ASTKind.CONDITIONAL_EXPRESSION,
@@ -240,32 +245,34 @@ export class Parser {
 
     let node: ASTNode | null = null;
 
-    if (
-      startToken.type === TokenType.FLOAT_LITERAL ||
-      startToken.type === TokenType.INTEGER_LITERAL
-    ) {
+    if (startToken.type === TokenType.FLOAT_LITERAL || startToken.type === TokenType.INT_LITERAL) {
       this._advance();
       const numberNode: NumberLiteralNode = {
         kind: ASTKind.NUMBER_LITERAL,
         value: Number(startToken.value),
+        raw: startToken.raw,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
       node = numberNode;
-    } else if (
-      startToken.type === TokenType.SYNTAX_KEYWORD &&
-      (startToken.value === 'true' || startToken.value === 'false')
-    ) {
+    } else if (startToken.type === TokenType.BOOLEAN_LITERAL) {
       this._advance();
-      const booleanNode: NumberLiteralNode = {
-        kind: ASTKind.NUMBER_LITERAL,
-        value: startToken.value === 'true' ? 1 : 0,
+      const booleanNode: BooleanLiteralNode = {
+        kind: ASTKind.BOOLEAN_LITERAL,
+        value: startToken.value === 'true',
+        raw: startToken.raw,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
       node = booleanNode;
-    } else if (
-      startToken.type === TokenType.IDENTIFIER ||
-      startToken.type === TokenType.BUILTIN_VALUE
-    ) {
+    } else if (startToken.type === TokenType.STRING_LITERAL) {
+      this._advance();
+      const stringNode: StringLiteralNode = {
+        kind: ASTKind.STRING_LITERAL,
+        value: startToken.value,
+        raw: startToken.raw,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      node = stringNode;
+    } else if (startToken.type === TokenType.IDENTIFIER) {
       this._advance();
       const identifierNode: IdentifierNode = {
         kind: ASTKind.IDENTIFIER,
@@ -273,22 +280,21 @@ export class Parser {
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
       node = identifierNode;
-    } else if (startToken.type === TokenType.BRACKET && startToken.value === '(') {
+    } else if (startToken.type === TokenType.LEFT_PAREN) {
       this._advance();
       node = this._parseExpression();
-      this._expect(TokenType.BRACKET, ')', `Expected ')' after expression start with '('`);
+      this._expect(TokenType.RIGHT_PAREN, `Expected ')' after expression start with '('`);
     } else if (
-      startToken.type === TokenType.OPERATOR &&
-      (startToken.value === '+' ||
-        startToken.value === '-' ||
-        startToken.value === '!' ||
-        startToken.value === '~')
+      startToken.type === TokenType.PLUS ||
+      startToken.type === TokenType.MINUS ||
+      startToken.type === TokenType.NOT ||
+      startToken.type === TokenType.TILDE
     ) {
       this._advance();
       const operand = this._parsePrimary();
       const unaryNode: UnaryExpressionNode = {
         kind: ASTKind.UNARY_EXPRESSION,
-        operator: startToken.value,
+        operator: startToken.value as UnaryOperator,
         operand,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
@@ -304,8 +310,7 @@ export class Parser {
     }
 
     // Parse member expressions (a.b.c)
-    while (this._check(TokenType.OPERATOR, '.')) {
-      this._advance(); // skip '.'
+    while (this._match(TokenType.DOT)) {
       const memberToken = this._current();
       if (memberToken.type !== TokenType.IDENTIFIER) {
         this._advance();
