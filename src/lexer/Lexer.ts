@@ -1,15 +1,10 @@
 import { TokenType, type LexerError, type LexerOutput, type Token } from './TokenType';
 import {
-  SYNTAX_KEYWORDS,
-  TYPE_KEYWORDS,
-  BUILTIN_FUNCTIONS,
-  BUILTIN_VALUES,
-  ATTRIBUTES,
-  THREE_CHAR_OPERATORS,
-  TWO_CHAR_OPERATORS,
-  ONE_CHAR_OPERATORS,
-  PUNCTUATION_CHARS,
-  BRACKET_CHARS,
+  KEYWORDS,
+  RESERVED_WORDS,
+  THREE_SYNTACTIC_TOKENS,
+  TWO_SYNTACTIC_TOKENS,
+  ONE_SYNTACTIC_TOKENS,
 } from './define';
 
 const REGEX_WHITESPACE = /^\s$/;
@@ -81,13 +76,6 @@ export class Lexer {
         }
       }
 
-      // deal attribute
-      if (code === 64) {
-        // @
-        tokens[tokens.length] = this._readAttribute();
-        continue;
-      }
-
       // deal identifier and keyword
       if (code < 128 && CHAR_CODE_LOOKUP[code] & IS_IDENTIFIER_START) {
         tokens[tokens.length] = this._readIdentifierOrKeyword();
@@ -101,6 +89,7 @@ export class Lexer {
           this._position + 1 < this._source.length &&
           REGEX_DIGIT.test(this._source[this._position + 1]))
       ) {
+        // 0-9 or .[0-9]
         tokens[tokens.length] = this._readNumberLiteral();
         continue;
       }
@@ -126,39 +115,41 @@ export class Lexer {
     const startColumn = this._column;
 
     const char = this._source[this._position];
-    if (char in BRACKET_CHARS) {
-      this._position += 1;
-      this._column += 1;
-      return this._createToken(TokenType.BRACKET, char, start, startLine, startColumn);
-    }
-    if (char in PUNCTUATION_CHARS) {
-      this._position += 1;
-      this._column += 1;
-      return this._createToken(TokenType.PUNCTUATION, char, start, startLine, startColumn);
-    }
     // three operators
     if (this._position + 2 < this._source.length) {
       const threeChar = this._source.slice(this._position, this._position + 3);
-      if (threeChar in THREE_CHAR_OPERATORS) {
+      if (threeChar in THREE_SYNTACTIC_TOKENS) {
         this._position += 3;
         this._column += 3;
-        return this._createToken(TokenType.OPERATOR, threeChar, start, startLine, startColumn);
+        return this._createToken(
+          THREE_SYNTACTIC_TOKENS[threeChar],
+          threeChar,
+          start,
+          startLine,
+          startColumn,
+        );
       }
     }
     // two operators
     if (this._position + 1 < this._source.length) {
       const twoChar = this._source.slice(this._position, this._position + 2);
-      if (twoChar in TWO_CHAR_OPERATORS) {
+      if (twoChar in TWO_SYNTACTIC_TOKENS) {
         this._position += 2;
         this._column += 2;
-        return this._createToken(TokenType.OPERATOR, twoChar, start, startLine, startColumn);
+        return this._createToken(
+          TWO_SYNTACTIC_TOKENS[twoChar],
+          twoChar,
+          start,
+          startLine,
+          startColumn,
+        );
       }
     }
     // one operator
-    if (char in ONE_CHAR_OPERATORS) {
+    if (char in ONE_SYNTACTIC_TOKENS) {
       this._position += 1;
       this._column += 1;
-      return this._createToken(TokenType.OPERATOR, char, start, startLine, startColumn);
+      return this._createToken(ONE_SYNTACTIC_TOKENS[char], char, start, startLine, startColumn);
     }
 
     this._addError(
@@ -191,6 +182,7 @@ export class Lexer {
     return {
       type,
       value,
+      raw: this._source.slice(start, this._position),
       start,
       line: startLine,
       column: startColumn,
@@ -260,7 +252,8 @@ export class Lexer {
     const startLine = this._line;
     const startColumn = this._column;
 
-    let isFloat = false;
+    let type: TokenType = TokenType.INT_LITERAL;
+    let DIGHT_CODE = IS_DIGIT;
 
     if (
       this._source[this._position] === '0' &&
@@ -271,15 +264,49 @@ export class Lexer {
       this._position += 2;
       this._column += 2;
 
+      DIGHT_CODE = IS_HEX_DIGIT;
+    }
+    while (this._position < this._source.length) {
+      const code = this._source.charCodeAt(this._position);
+      if (!(code < 128 && CHAR_CODE_LOOKUP[code] & DIGHT_CODE)) {
+        break;
+      }
+      this._position += 1;
+      this._column += 1;
+    }
+
+    // deal float
+    if (this._position < this._source.length && this._source[this._position] === '.') {
+      this._position += 1;
+      this._column += 1;
+
+      type = TokenType.FLOAT_LITERAL;
       while (this._position < this._source.length) {
         const code = this._source.charCodeAt(this._position);
-        if (!(code < 128 && CHAR_CODE_LOOKUP[code] & IS_HEX_DIGIT)) {
+        if (!(code < 128 && CHAR_CODE_LOOKUP[code] & DIGHT_CODE)) {
           break;
         }
         this._position += 1;
         this._column += 1;
       }
-    } else {
+    }
+
+    // deal exponent
+    if (
+      this._position < this._source.length &&
+      (this._source[this._position].toLowerCase() === 'e' ||
+        this._source[this._position].toLowerCase() === 'p')
+    ) {
+      this._position += 1;
+      this._column += 1;
+
+      // deal sign
+      const sign = this._source[this._position];
+      if (sign === '+' || sign === '-') {
+        this._position += 1;
+        this._column += 1;
+      }
+
       while (this._position < this._source.length) {
         const code = this._source.charCodeAt(this._position);
         if (!(code < 128 && CHAR_CODE_LOOKUP[code] & IS_DIGIT)) {
@@ -288,62 +315,20 @@ export class Lexer {
         this._position += 1;
         this._column += 1;
       }
+    }
 
-      // deal float
-      if (this._position < this._source.length && this._source[this._position] === '.') {
-        isFloat = true;
+    // deal suffix
+    if (this._position < this._source.length) {
+      const suffix = this._source[this._position];
+      if (suffix === 'f' || suffix === 'h' || suffix === 'u' || suffix === 'i') {
+        if (suffix === 'f' || suffix === 'h') {
+          type = TokenType.FLOAT_LITERAL;
+        }
         this._position += 1;
-        this._column += 1;
-
-        while (this._position < this._source.length) {
-          const code = this._source.charCodeAt(this._position);
-          if (!(code < 128 && CHAR_CODE_LOOKUP[code] & IS_DIGIT)) {
-            break;
-          }
-          this._position += 1;
-          this._column += 1;
-        }
-      }
-
-      // deal exponent
-      if (
-        this._position < this._source.length &&
-        this._source[this._position].toLowerCase() === 'e'
-      ) {
-        this._position += 1;
-        this._column += 1;
-
-        // deal sign
-        const sign = this._source[this._position];
-        if (sign === '+' || sign === '-') {
-          this._position += 1;
-          this._column += 1;
-        }
-
-        while (this._position < this._source.length) {
-          const code = this._source.charCodeAt(this._position);
-          if (!(code < 128 && CHAR_CODE_LOOKUP[code] & IS_DIGIT)) {
-            break;
-          }
-          this._position += 1;
-          this._column += 1;
-        }
-      }
-
-      // deal suffix
-      if (this._position < this._source.length) {
-        const suffix = this._source[this._position];
-        if (suffix === 'f' || suffix === 'h' || suffix === 'u' || suffix === 'i') {
-          if (suffix === 'f' || suffix === 'h') {
-            isFloat = true;
-          }
-          this._position += 1;
-        }
       }
     }
 
     const value = this._source.substring(start, this._position);
-    const type = isFloat ? TokenType.FLOAT_LITERAL : TokenType.INTEGER_LITERAL;
     return this._createToken(type, value, start, startLine, startColumn);
   }
 
@@ -364,43 +349,15 @@ export class Lexer {
     }
     const value = this._source.slice(start, this._position);
     let type: TokenType = TokenType.IDENTIFIER;
-    if (value in SYNTAX_KEYWORDS) {
-      type = TokenType.SYNTAX_KEYWORD;
-    } else if (value in TYPE_KEYWORDS) {
-      type = TokenType.TYPE_KEYWORD;
-    } else if (value in BUILTIN_FUNCTIONS) {
-      type = TokenType.BUILTIN_FUNCTION;
-    } else if (value in BUILTIN_VALUES) {
-      type = TokenType.BUILTIN_VALUE;
+    if (value === 'true' || value === 'false') {
+      type = TokenType.BOOLEAN_LITERAL;
+    } else if (value in KEYWORDS) {
+      type = KEYWORDS[value];
+    } else if (value in RESERVED_WORDS) {
+      type = RESERVED_WORDS[value];
     }
 
     return this._createToken(type, value, start, startLine, startColumn);
-  }
-
-  private _readAttribute(): Token {
-    const start = this._position;
-    const startLine = this._line;
-    const startColumn = this._column;
-
-    this._position += 1;
-    this._column += 1;
-
-    while (this._position < this._source.length) {
-      const code = this._source.charCodeAt(this._position);
-      if (!(code < 128 && CHAR_CODE_LOOKUP[code] & IS_IDENTIFIER_PART)) {
-        break;
-      }
-      this._position += 1;
-      this._column += 1;
-    }
-
-    const value = this._source.slice(start + 1, this._position);
-    if (!(value in ATTRIBUTES)) {
-      this._addError(`Unknown attribute '${value}'`, startLine, startColumn);
-      return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
-    }
-
-    return this._createToken(TokenType.ATTRIBUTE, value, start, startLine, startColumn);
   }
 
   private _readLineComment(): Token {
@@ -430,23 +387,20 @@ export class Lexer {
 
     let isEnd = false;
 
-    while (this._position < this._source.length) {
+    while (this._position + 1 < this._source.length) {
       if (this._source[this._position] === '\n') {
         this._line += 1;
         this._column = 1;
       } else {
         this._column += 1;
       }
-      if (
-        this._source[this._position] === '*' &&
-        this._position + 1 < this._source.length &&
-        this._source[this._position + 1] === '/'
-      ) {
+      if (this._source[this._position] === '*' && this._source[this._position + 1] === '/') {
         this._position += 2;
         this._column += 2;
         isEnd = true;
         break;
       }
+      this._position += 1;
     }
 
     if (!isEnd) {

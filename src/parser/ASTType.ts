@@ -4,6 +4,7 @@ export enum ASTKind {
   ERROR,
   PROGRAM,
   NUMBER_LITERAL,
+  BOOLEAN_LITERAL,
   STRING_LITERAL,
   IDENTIFIER,
   ASSIGNMENT,
@@ -39,10 +40,17 @@ export interface ProgramNode extends ASTNode<ASTKind.PROGRAM> {
 
 export interface NumberLiteralNode extends ASTNode<ASTKind.NUMBER_LITERAL> {
   value: number;
+  raw: string;
 }
 
 export interface StringLiteralNode extends ASTNode<ASTKind.STRING_LITERAL> {
   value: string;
+  raw: string;
+}
+
+export interface BooleanLiteralNode extends ASTNode<ASTKind.BOOLEAN_LITERAL> {
+  value: boolean;
+  raw: string;
 }
 
 export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
@@ -60,7 +68,7 @@ export interface AssignmentNode extends ASTNode<ASTKind.ASSIGNMENT> {
   operator: AssignmentOperator;
 }
 
-type UnaryOperator = '+' | '-' | '!' | '~';
+export type UnaryOperator = '+' | '-' | '!' | '~';
 
 export interface UnaryExpressionNode extends ASTNode<ASTKind.UNARY_EXPRESSION> {
   operator: UnaryOperator;
