@@ -205,6 +205,8 @@ export class Lexer {
       const char = this._source[this._position];
       if (char === quote) {
         isEnd = true;
+        this._position += 1;
+        this._column += 1;
         break;
       }
       if (char === '\\') {
