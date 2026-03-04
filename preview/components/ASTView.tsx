@@ -130,7 +130,7 @@ function Tree(props: TreeProps) {
     <li class={styles.item} onMouseOver={onMouseOver}>
       <span class={styles.key}>{props.key}:</span>
       <span class={styles.value}>
-        {typeof props.value === 'string' ? `"${props.value}"` : props.value}
+        {typeof props.value === 'string' ? `"${props.value.replaceAll('"', '\\"')}"` : props.value}
       </span>
     </li>
   );
