@@ -269,28 +269,29 @@ export class Parser {
       if (this._match(TokenType.LEFT_PAREN)) {
         expression = this._finishCall(expression, startToken);
       } else if (this._match(TokenType.DOT)) {
-        const propertyToken = this._expect(
-          TokenType.IDENTIFIER,
-          'Expected property name after dot',
-        );
-        const property: IdentifierNode = {
-          kind: ASTKind.IDENTIFIER,
-          name: propertyToken.value,
-          position: this._createPosition(propertyToken.start, this._previous().end, propertyToken),
-        };
-        const member: MemberExpressionNode = {
-          kind: ASTKind.MEMBER_EXPRESSION,
-          object: expression,
-          property,
-          position: this._createPosition(startToken.start, this._previous().end, startToken),
-        };
-        expression = member;
+        expression = this._finishMember(expression, startToken);
       } else {
         break;
       }
     }
 
     return expression;
+  }
+
+  private _finishMember(object: ASTNode, startToken: Token): ASTNode {
+    const propertyToken = this._expect(TokenType.IDENTIFIER, 'Expected property name after dot');
+    const property: IdentifierNode = {
+      kind: ASTKind.IDENTIFIER,
+      name: propertyToken.value,
+      position: this._createPosition(propertyToken.start, this._previous().end, propertyToken),
+    };
+    const member: MemberExpressionNode = {
+      kind: ASTKind.MEMBER_EXPRESSION,
+      object,
+      property,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return member;
   }
 
   private _finishCall(callee: ASTNode, startToken: Token): ASTNode {
