@@ -6,6 +6,7 @@ import {
   type BinaryExpressionNode,
   type BinaryOperator,
   type BooleanLiteralNode,
+  type CallExpressionNode,
   type ConditionalExpressionNode,
   type ExpressionStatementNode,
   type IdentifierNode,
@@ -21,6 +22,7 @@ import {
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
+import { parseNumber } from './helper';
 
 export interface ParserOutput {
   program: ProgramNode;
@@ -133,22 +135,7 @@ export class Parser {
 
   private _parseExpressionStatement(): ExpressionStatementNode {
     const startToken = this._current();
-    let expression = this._parseAssignmentOrExpression();
-
-    if (this._check(TokenType.COMMA)) {
-      const expressions: ASTNode[] = [expression];
-      while (this._check(TokenType.COMMA)) {
-        this._advance();
-        const nextExpression = this._parseAssignmentOrExpression();
-        expressions.push(nextExpression);
-      }
-      const nextNode: SequenceExpressionNode = {
-        kind: ASTKind.SEQUENCE_EXPRESSION,
-        expressions,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      expression = nextNode;
-    }
+    const expression = this._parseExpression();
     if (this._check(TokenType.SEMICOLON)) {
       this._advance();
     }
@@ -160,9 +147,29 @@ export class Parser {
     return state;
   }
 
-  private _parseAssignmentOrExpression(): ASTNode {
+  private _parseExpression(): ASTNode {
     const startToken = this._current();
-    let expression = this._parseExpression();
+    let expression = this._parseAssignment();
+    if (this._check(TokenType.COMMA)) {
+      const expressions: ASTNode[] = [expression];
+      while (this._match(TokenType.COMMA)) {
+        const nextExpression = this._parseAssignment();
+        expressions.push(nextExpression);
+      }
+      const next: SequenceExpressionNode = {
+        kind: ASTKind.SEQUENCE_EXPRESSION,
+        expressions,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      expression = next;
+    }
+
+    return expression;
+  }
+
+  private _parseAssignment(): ASTNode {
+    const startToken = this._current();
+    let expression = this._parseConditional();
     if (
       this._check(TokenType.EQUALS) ||
       this._check(TokenType.PLUS_EQUALS) ||
@@ -177,45 +184,42 @@ export class Parser {
       this._check(TokenType.SHIFT_RIGHT_EQUALS)
     ) {
       const operator = this._advance().value;
-      const right = this._parseExpression();
-      const nextNode: AssignmentNode = {
+      const right = this._parseAssignment();
+      const next: AssignmentNode = {
         kind: ASTKind.ASSIGNMENT,
         left: expression,
         operator: operator as AssignmentOperator,
         right,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
-      expression = nextNode;
+      expression = next;
     }
     return expression;
   }
 
-  private _parseExpression(): ASTNode {
+  private _parseConditional(): ASTNode {
     const startToken = this._current();
-
-    let node = this._parseBinary();
-    if (this._check(TokenType.QUESTION)) {
-      this._advance();
+    let expression = this._parseBinary();
+    if (this._match(TokenType.QUESTION)) {
       const whenTrue = this._parseExpression();
-      this._expect(TokenType.COLON, `Expected ':' on conditional expression`);
-      const whenFalse = this._parseExpression();
-      const nextNode: ConditionalExpressionNode = {
+      this._expect(TokenType.COLON, `Expected ':' after then`);
+      const whenFalse = this._parseConditional();
+      const conditional: ConditionalExpressionNode = {
         kind: ASTKind.CONDITIONAL_EXPRESSION,
-        condition: node,
-        whenTrue,
+        condition: expression,
+        whenTrue: whenTrue,
         whenFalse,
-        position: this._createPosition(node.position.start, whenFalse.position.end, startToken),
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
-      node = nextNode;
+      expression = conditional;
     }
-
-    return node;
+    return expression;
   }
 
   private _parseBinary(minPrecedence: number = 0): ASTNode {
     const startToken = this._current();
 
-    let left = this._parsePrimary();
+    let expression = this._parseUnary();
     while (!this._isEnd()) {
       const operator = this._current().value;
       if (!(operator in OPERATOR_PRECEDENCE)) {
@@ -227,116 +231,136 @@ export class Parser {
       }
       this._advance();
       const right = this._parseBinary(precedence + 1);
-      const nextLeft: BinaryExpressionNode = {
+      const binary: BinaryExpressionNode = {
         kind: ASTKind.BINARY_EXPRESSION,
         operator: operator as BinaryOperator,
-        left,
+        left: expression,
         right,
-        position: this._createPosition(left.position.start, right.position.end, startToken),
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
-      left = nextLeft;
+      expression = binary;
     }
 
-    return left;
+    return expression;
   }
 
-  private _parsePrimary(): ASTNode {
+  private _parseUnary(): ASTNode {
     const startToken = this._current();
 
-    let node: ASTNode | null = null;
-
-    if (startToken.type === TokenType.FLOAT_LITERAL || startToken.type === TokenType.INT_LITERAL) {
-      this._advance();
-      const numberNode: NumberLiteralNode = {
-        kind: ASTKind.NUMBER_LITERAL,
-        value: Number(startToken.value),
-        raw: startToken.raw,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      node = numberNode;
-    } else if (startToken.type === TokenType.BOOLEAN_LITERAL) {
-      this._advance();
-      const booleanNode: BooleanLiteralNode = {
-        kind: ASTKind.BOOLEAN_LITERAL,
-        value: startToken.value === 'true',
-        raw: startToken.raw,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      node = booleanNode;
-    } else if (startToken.type === TokenType.STRING_LITERAL) {
-      this._advance();
-      const stringNode: StringLiteralNode = {
-        kind: ASTKind.STRING_LITERAL,
-        value: startToken.value,
-        raw: startToken.raw,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      node = stringNode;
-    } else if (startToken.type === TokenType.IDENTIFIER) {
-      this._advance();
-      const identifierNode: IdentifierNode = {
-        kind: ASTKind.IDENTIFIER,
-        name: startToken.value,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      node = identifierNode;
-    } else if (startToken.type === TokenType.LEFT_PAREN) {
-      this._advance();
-      node = this._parseExpression();
-      this._expect(TokenType.RIGHT_PAREN, `Expected ')' after expression start with '('`);
-    } else if (
-      startToken.type === TokenType.PLUS ||
-      startToken.type === TokenType.MINUS ||
-      startToken.type === TokenType.NOT ||
-      startToken.type === TokenType.TILDE
-    ) {
-      this._advance();
-      const operand = this._parsePrimary();
-      const unaryNode: UnaryExpressionNode = {
+    if (this._match(TokenType.PLUS, TokenType.MINUS, TokenType.NOT, TokenType.TILDE)) {
+      const operand = this._parseUnary();
+      const unary: UnaryExpressionNode = {
         kind: ASTKind.UNARY_EXPRESSION,
         operator: startToken.value as UnaryOperator,
         operand,
         position: this._createPosition(startToken.start, this._previous().end, startToken),
       };
-      node = unaryNode;
-    } else {
-      this._advance();
-      this._addError(`Unexpected token '${startToken.value}' in primary expression`);
-      const errorNode: ASTNode = {
-        kind: ASTKind.ERROR,
-        position: this._createPosition(startToken.start, this._previous().end, startToken),
-      };
-      node = errorNode;
+      return unary;
     }
 
-    // Parse member expressions (a.b.c)
-    while (this._match(TokenType.DOT)) {
-      const memberToken = this._current();
-      if (memberToken.type !== TokenType.IDENTIFIER) {
-        this._advance();
-        this._addError(`Expected identifier after '.' in member expression`);
+    return this._parseCall();
+  }
+
+  private _parseCall(): ASTNode {
+    const startToken = this._current();
+
+    let expression = this._parsePrimary();
+    while (!this._isEnd()) {
+      if (this._match(TokenType.LEFT_PAREN)) {
+        expression = this._finishCall(expression, startToken);
+      } else if (this._match(TokenType.DOT)) {
+        expression = this._finishMember(expression, startToken);
+      } else {
         break;
       }
-      this._advance(); // skip identifier
-      const propertyNode: IdentifierNode = {
-        kind: ASTKind.IDENTIFIER,
-        name: memberToken.value,
-        position: this._createPosition(memberToken.start, this._previous().end, memberToken),
-      };
-      const memberNode: MemberExpressionNode = {
-        kind: ASTKind.MEMBER_EXPRESSION,
-        object: node,
-        property: propertyNode,
-        position: {
-          line: node.position.line,
-          column: node.position.column,
-          start: node.position.start,
-          end: this._previous().end,
-        },
-      };
-      node = memberNode;
     }
 
-    return node;
+    return expression;
+  }
+
+  private _finishMember(object: ASTNode, startToken: Token): ASTNode {
+    const propertyToken = this._expect(TokenType.IDENTIFIER, 'Expected property name after dot');
+    const property: IdentifierNode = {
+      kind: ASTKind.IDENTIFIER,
+      name: propertyToken.value,
+      position: this._createPosition(propertyToken.start, this._previous().end, propertyToken),
+    };
+    const member: MemberExpressionNode = {
+      kind: ASTKind.MEMBER_EXPRESSION,
+      object,
+      property,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return member;
+  }
+
+  private _finishCall(callee: ASTNode, startToken: Token): ASTNode {
+    const args: ASTNode[] = [];
+
+    if (!this._match(TokenType.RIGHT_PAREN)) {
+      do {
+        args.push(this._parseExpression());
+      } while (this._match(TokenType.DOT));
+    }
+    const callExpression: CallExpressionNode = {
+      kind: ASTKind.CALL_EXPRESSION,
+      callee,
+      arguments: args,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return callExpression;
+  }
+
+  private _parsePrimary(): ASTNode {
+    const startToken = this._current();
+
+    if (this._match(TokenType.FLOAT_LITERAL, TokenType.INT_LITERAL)) {
+      const numberLiteral: NumberLiteralNode = {
+        kind: ASTKind.NUMBER_LITERAL,
+        value: parseNumber(startToken.value),
+        raw: startToken.raw,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return numberLiteral;
+    }
+    if (this._match(TokenType.BOOLEAN_LITERAL)) {
+      const booleanLiteral: BooleanLiteralNode = {
+        kind: ASTKind.BOOLEAN_LITERAL,
+        value: startToken.value === 'true',
+        raw: startToken.raw,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return booleanLiteral;
+    }
+    if (this._match(TokenType.STRING_LITERAL)) {
+      const stringLiteral: StringLiteralNode = {
+        kind: ASTKind.STRING_LITERAL,
+        value: startToken.value,
+        raw: startToken.raw,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return stringLiteral;
+    }
+    if (this._match(TokenType.IDENTIFIER)) {
+      const identifier: IdentifierNode = {
+        kind: ASTKind.IDENTIFIER,
+        name: startToken.value,
+        position: this._createPosition(startToken.start, this._previous().end, startToken),
+      };
+      return identifier;
+    }
+    if (this._match(TokenType.LEFT_PAREN)) {
+      const expression = this._parseExpression();
+      this._expect(TokenType.RIGHT_PAREN, `Expected ')' after expression start with '('`);
+      return expression;
+    }
+
+    this._advance();
+    this._addError(`Unexpected token '${startToken.value}' in primary expression`);
+    const errorNode: ASTNode = {
+      kind: ASTKind.ERROR,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return errorNode;
   }
 }

@@ -13,6 +13,7 @@ export enum ASTKind {
   CONDITIONAL_EXPRESSION,
   MEMBER_EXPRESSION,
   SEQUENCE_EXPRESSION,
+  CALL_EXPRESSION,
   EXPRESSION_STATEMENT,
 }
 
@@ -100,6 +101,11 @@ export interface MemberExpressionNode extends ASTNode<ASTKind.MEMBER_EXPRESSION>
 
 export interface SequenceExpressionNode extends ASTNode<ASTKind.SEQUENCE_EXPRESSION> {
   expressions: ASTNode[];
+}
+
+export interface CallExpressionNode extends ASTNode<ASTKind.CALL_EXPRESSION> {
+  callee: ASTNode;
+  arguments: ASTNode[];
 }
 
 export interface ExpressionStatementNode extends ASTNode<ASTKind.EXPRESSION_STATEMENT> {

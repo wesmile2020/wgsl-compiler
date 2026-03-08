@@ -10,6 +10,11 @@ import {
   type MemberExpressionNode,
 } from './ASTType';
 
+export function parseNumber(value: string): number {
+  // TODO: parse wgsl number string
+  return Number(value);
+}
+
 export function isNumberLiteral(node: ASTNode): node is NumberLiteralNode {
   return node.kind === ASTKind.NUMBER_LITERAL;
 }
