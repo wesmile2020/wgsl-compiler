@@ -297,11 +297,13 @@ export class Parser {
   private _finishCall(callee: ASTNode, startToken: Token): ASTNode {
     const args: ASTNode[] = [];
 
-    if (!this._match(TokenType.RIGHT_PAREN)) {
+    if (!this._check(TokenType.RIGHT_PAREN)) {
       do {
         args.push(this._parseExpression());
-      } while (this._match(TokenType.DOT));
+      } while (this._match(TokenType.DOT) && !this._check(TokenType.RIGHT_PAREN));
     }
+    this._expect(TokenType.RIGHT_PAREN, `Expected ')' after call arguments`);
+
     const callExpression: CallExpressionNode = {
       kind: ASTKind.CALL_EXPRESSION,
       callee,
