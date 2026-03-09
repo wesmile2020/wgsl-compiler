@@ -125,7 +125,8 @@ export class Parser {
       if (this._match(TokenType.SEMICOLON)) {
         continue;
       }
-      body.push(this._parseExpressionStatement());
+
+      body.push(this._parseDeclaration());
     }
 
     const program: ProgramNode = {
