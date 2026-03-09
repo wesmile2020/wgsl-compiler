@@ -12,7 +12,7 @@ interface Props {
 
 interface TreeProps {
   key?: string;
-  value: string | number | unknown[] | object;
+  value: string | number | unknown[] | object | null;
   nameResolver?: (ast: object) => string;
   open?: boolean;
   onFocused?: (ast: object) => void;
@@ -75,10 +75,10 @@ function Tree(props: TreeProps) {
 
   if (typeof props.value === 'object' && props.value !== null) {
     const name = () => {
-      return props.nameResolver?.(props.value as object) || props.value.constructor.name;
+      return props.nameResolver?.(props.value as object) || props.value!.constructor.name;
     };
     const childKeys = () => {
-      return Object.keys(props.value) as (keyof typeof props.value)[];
+      return Object.keys(props.value!) as (keyof typeof props.value)[];
     };
     const shortMessage = () => {
       const maxKeys = 4;
@@ -111,7 +111,7 @@ function Tree(props: TreeProps) {
                 {(childKey) => (
                   <Tree
                     key={childKey}
-                    value={props.value[childKey]}
+                    value={props.value![childKey]}
                     nameResolver={props.nameResolver}
                     onFocused={props.onFocused}
                     onUnfocused={props.onUnfocused}
@@ -126,11 +126,21 @@ function Tree(props: TreeProps) {
     );
   }
 
+  function showValue(value: string | number | null) {
+    if (value === null) {
+      return 'null';
+    }
+    if (typeof value === 'string') {
+      return `"${value.replaceAll('"', '\\"')}"`;
+    }
+    return value.toString();
+  }
+
   return (
     <li class={styles.item} onMouseOver={onMouseOver}>
       <span class={styles.key}>{props.key}:</span>
       <span class={styles.value}>
-        {typeof props.value === 'string' ? `"${props.value.replaceAll('"', '\\"')}"` : props.value}
+        {showValue(props.value)}
       </span>
     </li>
   );
