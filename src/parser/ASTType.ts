@@ -3,7 +3,8 @@ import { type TokenType } from '@/lexer/TokenType';
 export enum ASTKind {
   ERROR,
   PROGRAM,
-  LET_DECLARATION,
+  VARIABLE_DECLARATION,
+  VARIABLE_DECORATOR,
   BLOCK_STATEMENT,
   EXPRESSION_STATEMENT,
   SEQUENCE_EXPRESSION,
@@ -42,7 +43,18 @@ export interface ProgramNode extends ASTNode<ASTKind.PROGRAM> {
   body: ASTNode[];
 }
 
-export interface LetDeclarationNode extends ASTNode<ASTKind.LET_DECLARATION> {}
+export type Modifier = 'let' | 'const' | 'var';
+
+export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLARATION> {
+  declarations: VariableDecoratorNode[];
+  modifier: Modifier;
+}
+
+export interface VariableDecoratorNode extends ASTNode<ASTKind.VARIABLE_DECORATOR> {
+  identifier: IdentifierNode;
+  type: ASTNode | null;
+  initializer: ASTNode | null;
+}
 
 export interface BlockStatementNode extends ASTNode<ASTKind.BLOCK_STATEMENT> {
   body: ASTNode[];
@@ -127,12 +139,4 @@ export interface StringLiteralNode extends ASTNode<ASTKind.STRING_LITERAL> {
 
 export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
   name: string;
-}
-
-export interface BlockStatementNode extends ASTNode<ASTKind.BLOCK_STATEMENT> {
-  body: ASTNode[];
-}
-
-export interface LetDeclarationNode extends ASTNode<ASTKind.LET_DECLARATION> {
-
 }
