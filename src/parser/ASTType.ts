@@ -15,6 +15,9 @@ export enum ASTKind {
   SEQUENCE_EXPRESSION,
   CALL_EXPRESSION,
   EXPRESSION_STATEMENT,
+  BLOCK_STATEMENT,
+
+  LET_DECLARATION,
 }
 
 export interface Position {
@@ -110,4 +113,12 @@ export interface CallExpressionNode extends ASTNode<ASTKind.CALL_EXPRESSION> {
 
 export interface ExpressionStatementNode extends ASTNode<ASTKind.EXPRESSION_STATEMENT> {
   expression: ASTNode;
+}
+
+export interface BlockStatementNode extends ASTNode<ASTKind.BLOCK_STATEMENT> {
+  body: ASTNode[];
+}
+
+export interface LetDeclarationNode extends ASTNode<ASTKind.LET_DECLARATION> {
+
 }

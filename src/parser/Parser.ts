@@ -5,6 +5,7 @@ import {
   type ASTNode,
   type BinaryExpressionNode,
   type BinaryOperator,
+  type BlockStatementNode,
   type BooleanLiteralNode,
   type CallExpressionNode,
   type ConditionalExpressionNode,
@@ -122,7 +123,8 @@ export class Parser {
       if (this._match(TokenType.SEMICOLON)) {
         continue;
       }
-      body.push(this._parseExpressionStatement());
+
+      body.push(this._parseDeclaration());
     }
 
     const program: ProgramNode = {
@@ -131,6 +133,41 @@ export class Parser {
       position: this._createPosition(startToken.start, this._previous().end, startToken),
     };
     return { program, errors: this._errors };
+  }
+
+  private _parseDeclaration(): ASTNode {
+    if (this._check(TokenType.LET)) {
+      return this._parseLetDeclaration();
+    }
+
+    return this._parseStatement();
+  }
+
+  private _parseLetDeclaration(): ASTNode {
+
+  }
+
+  private _parseStatement(): ASTNode {
+    if (this._check(TokenType.LEFT_BRACE)) {
+      return this._parseBlock();
+    }
+    return this._parseExpressionStatement();
+  }
+
+  private _parseBlock(): ASTNode {
+    const startToken = this._current();
+    this._advance();
+    const body: ASTNode[] = [];
+    while (!this._check(TokenType.RIGHT_BRACE)) {
+      body.push(this._parseStatement());
+    }
+    this._expect(TokenType.RIGHT_BRACE, `Expected '}' after block`);
+    const block: BlockStatementNode = {
+      kind: ASTKind.BLOCK_STATEMENT,
+      body,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return block;
   }
 
   private _parseExpressionStatement(): ExpressionStatementNode {
