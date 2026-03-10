@@ -130,6 +130,9 @@ function Tree(props: TreeProps) {
     if (value === null) {
       return 'null';
     }
+    if (value === undefined) {
+      return 'undefined';
+    }
     if (typeof value === 'string') {
       return `"${value.replaceAll('"', '\\"')}"`;
     }
