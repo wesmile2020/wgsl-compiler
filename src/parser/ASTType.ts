@@ -3,7 +3,9 @@ import { type TokenType } from '@/lexer/TokenType';
 export enum ASTKind {
   ERROR,
   PROGRAM,
+  VARIABLE_MODIFIER,
   VARIABLE_DECLARATION,
+  VARIABLE_TYPE,
   VARIABLE_DECORATOR,
   BLOCK_STATEMENT,
   EXPRESSION_STATEMENT,
@@ -45,14 +47,24 @@ export interface ProgramNode extends ASTNode<ASTKind.PROGRAM> {
 
 export type Modifier = 'let' | 'const' | 'var';
 
+export interface VariableModifierNode extends ASTNode<ASTKind.VARIABLE_MODIFIER> {
+  name: Modifier;
+  arguments: ASTNode[];
+}
+
 export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLARATION> {
   declarations: VariableDecoratorNode[];
-  modifier: Modifier;
+  modifier: VariableModifierNode;
+}
+
+export interface VariableTypeNode extends ASTNode<ASTKind.VARIABLE_TYPE> {
+  name: string;
+  arguments: ASTNode[];
 }
 
 export interface VariableDecoratorNode extends ASTNode<ASTKind.VARIABLE_DECORATOR> {
   identifier: IdentifierNode;
-  type: ASTNode | null;
+  type: VariableTypeNode | null;
   initializer: ASTNode | null;
 }
 

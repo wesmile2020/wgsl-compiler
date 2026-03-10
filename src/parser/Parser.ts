@@ -25,6 +25,7 @@ import {
   type UpdateOperator,
   type VariableDeclarationNode,
   type VariableDecoratorNode,
+  type VariableModifierNode,
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
@@ -91,6 +92,7 @@ export class Parser {
       },
       expected,
     });
+    this._synchronize();
   }
 
   private _expect(type: TokenType, message: string): Token {
@@ -148,10 +150,26 @@ export class Parser {
     return this._parseStatement();
   }
 
+  private _parseTemplateList(): ASTNode[] {
+    const list: ASTNode[] = [];
+    if (this._match(TokenType.LESS_THAN)) {
+      do {
+        list.push(this._parseExpression());
+      } while (this._match(TokenType.COMMA));
+      this._expect(TokenType.GREATER_THAN, 'Expected closing angle bracket after variable modifier arguments');
+    }
+    return list;
+  }
+
   private _parseVariableDeclaration(): ASTNode {
     const startToken = this._previous();
+    const modifier: VariableModifierNode = {
+      kind: ASTKind.VARIABLE_MODIFIER,
+      name: startToken.value as Modifier,
+      arguments: this._parseTemplateList(),
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
     const declarations: VariableDecoratorNode[] = [];
-
     do {
       const variable = this._parseVariableDecorator(startToken.value as Modifier);
       declarations.push(variable);
@@ -160,7 +178,7 @@ export class Parser {
     const declaration: VariableDeclarationNode = {
       kind: ASTKind.VARIABLE_DECLARATION,
       declarations,
-      modifier: startToken.value as Modifier,
+      modifier,
       position: this._createPosition(startToken.start, this._previous().end, startToken),
     };
     return declaration;
@@ -472,5 +490,28 @@ export class Parser {
       position: this._createPosition(startToken.start, this._previous().end, startToken),
     };
     return errorNode;
+  }
+
+  private _synchronize(): void {
+    while (!this._isEnd()) {
+      const token = this._advance();
+      switch (token.type) {
+        case TokenType.SEMICOLON:
+          this._advance();
+          return;
+        case TokenType.CONST:
+        case TokenType.FN:
+        case TokenType.FOR:
+        case TokenType.IF:
+        case TokenType.LET:
+        case TokenType.LOOP:
+        case TokenType.STRUCT:
+        case TokenType.SWITCH:
+        case TokenType.VAR:
+        case TokenType.WHILE:
+          return;
+      }
+      this._advance();
+    }
   }
 }
