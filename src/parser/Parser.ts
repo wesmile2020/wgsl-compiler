@@ -26,6 +26,7 @@ import {
   type VariableDeclarationNode,
   type VariableDecoratorNode,
   type VariableModifierNode,
+  type VariableTypeNode,
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
@@ -150,15 +151,18 @@ export class Parser {
     return this._parseStatement();
   }
 
-  private _parseTemplateList(): ASTNode[] {
-    const list: ASTNode[] = [];
+  private _parseTemplateList(): ASTNode[] | null {
     if (this._match(TokenType.LESS_THAN)) {
-      do {
-        list.push(this._parseExpression());
-      } while (this._match(TokenType.COMMA));
-      this._expect(TokenType.GREATER_THAN, 'Expected closing angle bracket after variable modifier arguments');
+      const list: ASTNode[] = [];
+      if (!this._check(TokenType.GREATER_THAN)) {
+        do {
+          list.push(this._parseExpression());
+        } while (this._match(TokenType.COMMA) && !this._check(TokenType.GREATER_THAN));
+      }
+      this._expect(TokenType.GREATER_THAN, `Expected '>' after template list`);
+      return list;
     }
-    return list;
+    return null;
   }
 
   private _parseVariableDeclaration(): ASTNode {
@@ -184,6 +188,20 @@ export class Parser {
     return declaration;
   }
 
+  private _parseTypeSpecifier(): VariableTypeNode {
+    const startToken = this._current();
+    const nameToken = this._expect(TokenType.IDENTIFIER, 'Expected type name');
+    const name = nameToken.value;
+    const argumentsList = this._parseTemplateList();
+    const type: VariableTypeNode = {
+      kind: ASTKind.VARIABLE_TYPE,
+      name,
+      arguments: argumentsList,
+      position: this._createPosition(startToken.start, this._previous().end, startToken),
+    };
+    return type;
+  }
+
   private _parseVariableDecorator(modifier: Modifier): VariableDecoratorNode {
     const identifierToken = this._expect(TokenType.IDENTIFIER, `Expected identifier after ${modifier}`);
     const identifier: IdentifierNode = {
@@ -191,9 +209,10 @@ export class Parser {
       name: identifierToken.value,
       position: this._createPosition(identifierToken.start, this._previous().end, identifierToken),
     };
-    // TODO: parse type
-    if (this._match(TokenType.COLON)) {
 
+    let type: VariableTypeNode | null = null;
+    if (this._match(TokenType.COLON)) {
+      type = this._parseTypeSpecifier();
     }
 
     let initializer: ASTNode | null = null;
@@ -203,7 +222,7 @@ export class Parser {
     const variable: VariableDecoratorNode = {
       kind: ASTKind.VARIABLE_DECORATOR,
       identifier,
-      type: null,
+      type,
       initializer,
       position: this._createPosition(identifierToken.start, this._previous().end, identifierToken),
     };

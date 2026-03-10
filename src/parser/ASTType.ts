@@ -49,7 +49,7 @@ export type Modifier = 'let' | 'const' | 'var';
 
 export interface VariableModifierNode extends ASTNode<ASTKind.VARIABLE_MODIFIER> {
   name: Modifier;
-  arguments: ASTNode[];
+  arguments: ASTNode[] | null;
 }
 
 export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLARATION> {
@@ -59,7 +59,7 @@ export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLAR
 
 export interface VariableTypeNode extends ASTNode<ASTKind.VARIABLE_TYPE> {
   name: string;
-  arguments: ASTNode[];
+  arguments: ASTNode[] | null;
 }
 
 export interface VariableDecoratorNode extends ASTNode<ASTKind.VARIABLE_DECORATOR> {
