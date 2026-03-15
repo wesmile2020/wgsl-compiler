@@ -1,3 +1,4 @@
+import { TokenType, type Token } from '@/lexer/TokenType';
 import {
   ASTKind,
   type ASTNode,
@@ -9,6 +10,50 @@ import {
   type ExpressionStatementNode,
   type MemberExpressionNode,
 } from './ASTType';
+
+function getSuffix(value: string): [TokenType, string] {
+  if (value === '>=') {
+    return [TokenType.GREATER_THAN_EQUALS, '>='];
+  }
+  if (value === '>') {
+    return [TokenType.GREATER_THAN, '>'];
+  }
+  if (value === '=') {
+    return [TokenType.EQUALS, '='];
+  }
+  return [TokenType.ERROR, value];
+}
+
+export function dealCloseTemplateToken(token: Token): [Token, Token?] {
+  if (
+    token.type === TokenType.SHIFT_RIGHT_EQUALS ||
+    token.type === TokenType.GREATER_THAN_EQUALS ||
+    token.type === TokenType.SHIFT_RIGHT
+  ) {
+    const next: Token = {
+      type: TokenType.GREATER_THAN,
+      value: '>',
+      raw: '>',
+      line: token.line,
+      column: token.column,
+      start: token.start,
+      end: token.start + 1,
+    };
+    const [suffixType, suffixRaw] = getSuffix(token.value.slice(1));
+    const suffix: Token = {
+      type: suffixType,
+      value: suffixRaw,
+      raw: suffixRaw,
+      line: token.line,
+      column: token.column + 1,
+      start: token.start + 1,
+      end: token.end,
+    };
+    return [next, suffix];
+  }
+
+  return [token];
+}
 
 export function parseNumber(value: string): number {
   // TODO: parse wgsl number string

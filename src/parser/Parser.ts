@@ -11,6 +11,7 @@ import {
   type ConditionalExpressionNode,
   type ExpressionStatementNode,
   type IdentifierNode,
+  type MayBe,
   type MemberExpressionNode,
   type Modifier,
   type NumberLiteralNode,
@@ -19,6 +20,7 @@ import {
   type ProgramNode,
   type SequenceExpressionNode,
   type StringLiteralNode,
+  type TemplateIdentifier,
   type UnaryExpressionNode,
   type UnaryOperator,
   type UpdateExpressionNode,
@@ -30,7 +32,7 @@ import {
 } from './ASTType';
 import { OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
-import { parseNumber } from './helper';
+import { dealCloseTemplateToken, parseNumber } from './helper';
 
 export interface ParserOutput {
   program: ProgramNode;
@@ -81,6 +83,75 @@ export class Parser {
     return token.type === type;
   }
 
+  private _expect(type: TokenType, message: string): MayBe<void> {
+    if (this._check(type)) {
+      this._advance();
+      return { matched: true, errored: false, value: void(0) };
+    }
+    this._error(message, [type]);
+    return { matched: false, errored: true };
+  }
+
+  private _match(...types: TokenType[]): boolean {
+    for (let i = 0; i < types.length; i++) {
+      if (this._check(types[i])) {
+        this._advance();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private _snapshotPosition(): Position {
+    const token = this._current();
+    return {
+      line: token.line,
+      column: token.column,
+      start: token.start,
+      end: token.end,
+    };
+  }
+
+  private _makePosition(start: Position): Position {
+    return {
+      line: start.line,
+      column: start.column,
+      start: start.start,
+      end: this._previous().end,
+    }
+  }
+
+  private _error(message: string, expected?: TokenType[]): void {
+    this._errors.push({
+      message,
+      position: this._snapshotPosition(),
+      expected,
+    });
+  }
+
+  private _synchronize(): void {
+    while (!this._isEnd()) {
+      const token = this._advance();
+      switch (token.type) {
+        case TokenType.SEMICOLON:
+          this._advance();
+          return;
+        case TokenType.CONST:
+        case TokenType.FN:
+        case TokenType.FOR:
+        case TokenType.IF:
+        case TokenType.LET:
+        case TokenType.LOOP:
+        case TokenType.STRUCT:
+        case TokenType.SWITCH:
+        case TokenType.VAR:
+        case TokenType.WHILE:
+          return;
+      }
+      this._advance();
+    }
+  }
+
   private _addError(message: string, expected?: TokenType[]): void {
     const token = this._current();
     this._errors.push({
@@ -96,24 +167,6 @@ export class Parser {
     this._synchronize();
   }
 
-  private _expect(type: TokenType, message: string): Token {
-    if (this._check(type)) {
-      return this._advance();
-    }
-    this._addError(message, [type]);
-    return this._current();
-  }
-
-  private _match(...types: TokenType[]): boolean {
-    for (let i = 0; i < types.length; i++) {
-      if (this._check(types[i])) {
-        this._advance();
-        return true;
-      }
-    }
-    return false;
-  }
-
   private _createPosition(start: number, end: number, startToken: Token): Position {
     return {
       line: startToken.line,
@@ -125,22 +178,42 @@ export class Parser {
 
   parse(): ParserOutput {
     const body: ASTNode[] = [];
-    const startToken = this._current();
+    const start = this._snapshotPosition();
 
     while (!this._isEnd()) {
       if (this._match(TokenType.SEMICOLON)) {
         continue;
       }
 
-      body.push(this._parseDeclaration());
+      body.push(this._translation_unit());
     }
 
     const program: ProgramNode = {
       kind: ASTKind.PROGRAM,
       body,
-      position: this._createPosition(startToken.start, this._previous().end, startToken),
+      position: this._makePosition(start),
     };
     return { program, errors: this._errors };
+  }
+
+  private _translation_unit(): ASTNode {
+    const start = this._snapshotPosition();
+    const node = this._module();
+    if (node.matched) {
+      return node.value;
+    }
+    if (node.errored) {
+      this._synchronize();
+    }
+    const error: ASTNode<ASTKind.ERROR> = {
+      kind: ASTKind.ERROR,
+      position: this._makePosition(start),
+    };
+    return error;
+  }
+
+  private _module(): MayBe<ASTNode> {
+    return this._primary();
   }
 
   private _parseDeclaration(): ASTNode {
@@ -511,26 +584,176 @@ export class Parser {
     return errorNode;
   }
 
-  private _synchronize(): void {
-    while (!this._isEnd()) {
-      const token = this._advance();
-      switch (token.type) {
-        case TokenType.SEMICOLON:
-          this._advance();
-          return;
-        case TokenType.CONST:
-        case TokenType.FN:
-        case TokenType.FOR:
-        case TokenType.IF:
-        case TokenType.LET:
-        case TokenType.LOOP:
-        case TokenType.STRUCT:
-        case TokenType.SWITCH:
-        case TokenType.VAR:
-        case TokenType.WHILE:
-          return;
-      }
-      this._advance();
+  private _expression(): MayBe<ASTNode> {
+    return this._primary();
+  }
+
+  private _primary(): MayBe<ASTNode> {
+    const literal = this._literal();
+    if (literal.matched || literal.errored) {
+      return literal;
     }
+    const parenExpression = this._paren_expression();
+    if (parenExpression.matched || parenExpression.errored) {
+      return parenExpression;
+    }
+
+    return this._call_expression();
+  }
+
+  private _paren_expression(): MayBe<ASTNode> {
+    if (this._match(TokenType.LEFT_PAREN)) {
+      const expression = this._expression();
+      const expected = this._expect(TokenType.RIGHT_PAREN, `Expected ')' after expression start with '('`);
+      if (expected.errored) {
+        return expected;
+      }
+      if (expected.matched) {
+        return expression;
+      }
+    }
+    return { matched: false, errored: false };
+  }
+
+  private _literal(): MayBe<ASTNode> {
+    const start = this._snapshotPosition();
+    if (this._match(TokenType.INT_LITERAL, TokenType.FLOAT_LITERAL)) {
+      const node: NumberLiteralNode = {
+        kind: ASTKind.NUMBER_LITERAL,
+        value: parseNumber(this._previous().value),
+        raw: this._previous().raw,
+        position: this._makePosition(start),
+      };
+      return { matched: true, errored: false, value: node };
+    }
+    if (this._match(TokenType.BOOLEAN_LITERAL)) {
+      const node: BooleanLiteralNode = {
+        kind: ASTKind.BOOLEAN_LITERAL,
+        value: this._previous().value === 'true',
+        raw: this._previous().raw,
+        position: this._makePosition(start),
+      };
+      return { matched: true, errored: false, value: node };
+    }
+    if (this._match(TokenType.STRING_LITERAL)) {
+      const node: StringLiteralNode = {
+        kind: ASTKind.STRING_LITERAL,
+        value: this._previous().value,
+        raw: this._previous().raw,
+        position: this._makePosition(start),
+      };
+      return { matched: true, errored: false, value: node };
+    }
+
+    return { matched: false, errored: false };
+  }
+
+  private _call_expression(): MayBe<ASTNode> {
+    const start = this._snapshotPosition();
+    const templateIdentifier = this._template_elaborated_ident();
+    if (templateIdentifier.matched) {
+      const args = this._argument_expression_list();
+      if (args.errored) {
+        return args;
+      }
+      if (args.matched) {
+        const node: CallExpressionNode = {
+          kind: ASTKind.CALL_EXPRESSION,
+          callee: templateIdentifier.value,
+          arguments: args.value,
+          position: this._makePosition(start),
+        };
+        return { value: node, matched: true, errored: false };
+      }
+    }
+    return templateIdentifier;
+  }
+
+  private _argument_expression_list(): MayBe<ASTNode[]> {
+    if (this._match(TokenType.LEFT_PAREN)) {
+      const args: ASTNode[] = [];
+      if (!this._check(TokenType.RIGHT_PAREN)) {
+        do {
+          const expression = this._expression();
+          if (expression.errored) {
+            return expression;
+          }
+          if (expression.matched) {
+            args.push(expression.value);
+          }
+        } while (this._match(TokenType.COMMA) && !this._check(TokenType.RIGHT_PAREN));
+      }
+      const expected = this._expect(TokenType.RIGHT_PAREN, `Expected ')' after arguments`);
+      if (expected.errored) {
+        return expected;
+      }
+      return { value: args, matched: true, errored: false };
+    }
+    return { matched: false, errored: false };
+  }
+
+  private _template_elaborated_ident(): MayBe<ASTNode> {
+    const start = this._snapshotPosition();
+    const identifier = this._identifier();
+    if (identifier.matched) {
+      const templates = this._template_list();
+      if (templates.errored) {
+        return templates;
+      }
+      if (templates.matched) {
+        const node: TemplateIdentifier = {
+          kind: ASTKind.TEMPLATE_IDENTIFIER,
+          name: identifier.value,
+          templates: templates.value,
+          position: this._makePosition(start),
+        };
+        return { value: node, matched: true, errored: false };
+      }
+    }
+
+    return identifier;
+  }
+
+  private _identifier(): MayBe<IdentifierNode> {
+    const start = this._snapshotPosition();
+
+    if (this._match(TokenType.IDENTIFIER)) {
+      const node: IdentifierNode = {
+        kind: ASTKind.IDENTIFIER,
+        name: this._previous().value,
+        position: this._makePosition(start),
+      };
+      return { value: node, matched: true, errored: false };
+    }
+    return { matched: false, errored: false };
+  }
+
+  private _template_list(): MayBe<ASTNode[]> {
+    if (this._match(TokenType.LESS_THAN)) {
+      const args: ASTNode[] = [];
+      if (!this._check(TokenType.GREATER_THAN)) {
+        do {
+          const expression = this._expression();
+          if (expression.errored) {
+            return expression;
+          }
+          if (expression.matched) {
+            args.push(expression.value);
+          }
+        } while (this._match(TokenType.COMMA) && !this._check(TokenType.GREATER_THAN));
+      }
+      const [next, suffix] = dealCloseTemplateToken(this._current());
+      this._tokens[this._position] = next;
+      if (suffix) {
+        this._tokens.splice(this._position + 1, 0, suffix);
+      }
+      const expected = this._expect(TokenType.GREATER_THAN, 'Expected > after template list');
+      if (expected.errored) {
+        return expected;
+      }
+      return { matched: true, errored: false, value: args };;
+    }
+
+    return { matched: false, errored: false };
   }
 }
