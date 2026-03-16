@@ -20,6 +20,7 @@ export enum ASTKind {
   NUMBER_LITERAL,
   BOOLEAN_LITERAL,
   STRING_LITERAL,
+  TEMPLATE_IDENTIFIER,
   IDENTIFIER,
 }
 
@@ -41,6 +42,19 @@ export interface ASTNode<T extends ASTKind = ASTKind> {
   position: Position;
 }
 
+interface MyBeMatched<T> {
+  value: T;
+  matched: true;
+  errored: false;
+}
+
+interface MyBeErrored {
+  matched: false;
+  errored: boolean;
+}
+
+export type MayBe<T> = MyBeMatched<T> | MyBeErrored;
+
 export interface ProgramNode extends ASTNode<ASTKind.PROGRAM> {
   body: ASTNode[];
 }
@@ -49,7 +63,7 @@ export type Modifier = 'let' | 'const' | 'var';
 
 export interface VariableModifierNode extends ASTNode<ASTKind.VARIABLE_MODIFIER> {
   name: Modifier;
-  arguments: ASTNode[];
+  arguments: ASTNode[] | null;
 }
 
 export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLARATION> {
@@ -59,7 +73,7 @@ export interface VariableDeclarationNode extends ASTNode<ASTKind.VARIABLE_DECLAR
 
 export interface VariableTypeNode extends ASTNode<ASTKind.VARIABLE_TYPE> {
   name: string;
-  arguments: ASTNode[];
+  arguments: ASTNode[] | null;
 }
 
 export interface VariableDecoratorNode extends ASTNode<ASTKind.VARIABLE_DECORATOR> {
@@ -147,6 +161,11 @@ export interface BooleanLiteralNode extends ASTNode<ASTKind.BOOLEAN_LITERAL> {
 export interface StringLiteralNode extends ASTNode<ASTKind.STRING_LITERAL> {
   value: string;
   raw: string;
+}
+
+export interface TemplateIdentifier extends ASTNode<ASTKind.TEMPLATE_IDENTIFIER> {
+  name: IdentifierNode;
+  templates: ASTNode[];
 }
 
 export interface IdentifierNode extends ASTNode<ASTKind.IDENTIFIER> {
