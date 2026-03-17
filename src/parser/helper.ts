@@ -9,9 +9,10 @@ import {
   type IdentifierNode,
   type ExpressionStatementNode,
   type MemberExpressionNode,
+  type BooleanLiteralNode,
 } from './ASTType';
 
-function getSuffix(value: string): [TokenType, string] {
+function getSuffixType(value: string): [TokenType, string] {
   if (value === '>=') {
     return [TokenType.GREATER_THAN_EQUALS, '>='];
   }
@@ -39,7 +40,7 @@ export function dealCloseTemplateToken(token: Token): [Token, Token?] {
       start: token.start,
       end: token.start + 1,
     };
-    const [suffixType, suffixRaw] = getSuffix(token.value.slice(1));
+    const [suffixType, suffixRaw] = getSuffixType(token.value.slice(1));
     const suffix: Token = {
       type: suffixType,
       value: suffixRaw,
@@ -60,12 +61,20 @@ export function parseNumber(value: string): number {
   return Number(value);
 }
 
+export function isIdentifier(node: ASTNode): node is IdentifierNode {
+  return node.kind === ASTKind.IDENTIFIER;
+}
+
+export function isBooleanLiteral(node: ASTNode): node is BooleanLiteralNode {
+  return node.kind === ASTKind.BOOLEAN_LITERAL;
+}
+
 export function isNumberLiteral(node: ASTNode): node is NumberLiteralNode {
   return node.kind === ASTKind.NUMBER_LITERAL;
 }
 
-export function isIdentifier(node: ASTNode): node is IdentifierNode {
-  return node.kind === ASTKind.IDENTIFIER;
+export function isMemberExpression(node: ASTNode): node is MemberExpressionNode {
+  return node.kind === ASTKind.MEMBER_EXPRESSION;
 }
 
 export function isUnaryExpression(node: ASTNode): node is UnaryExpressionNode {
@@ -78,10 +87,6 @@ export function isBinaryExpression(node: ASTNode): node is BinaryExpressionNode 
 
 export function isConditionalExpression(node: ASTNode): node is ConditionalExpressionNode {
   return node.kind === ASTKind.CONDITIONAL_EXPRESSION;
-}
-
-export function isMemberExpression(node: ASTNode): node is MemberExpressionNode {
-  return node.kind === ASTKind.MEMBER_EXPRESSION;
 }
 
 export function isExpressionStatement(node: ASTNode): node is ExpressionStatementNode {

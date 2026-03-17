@@ -259,7 +259,7 @@ export class Lexer {
 
     if (
       this._source[this._position] === '0' &&
-      this._position < this._source.length &&
+      this._position + 1 < this._source.length &&
       this._source[this._position + 1].toLowerCase() === 'x'
     ) {
       // Hexadecimal number

@@ -1,7 +1,4 @@
-export const OPERATOR_PRECEDENCE: Record<string, number> = {
-  // unary operators
-  '!': 14,
-  '~': 14,
+export const BINARY_OPERATOR_PRECEDENCE: Record<string, number> = {
   // math operators
   '*': 13,
   '/': 13,
@@ -24,7 +21,4 @@ export const OPERATOR_PRECEDENCE: Record<string, number> = {
   // logical operators
   '&&': 5,
   '||': 4,
-  // ternary operator
-  '?': 3,
-  ':': 3,
 };
