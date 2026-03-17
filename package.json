@@ -33,6 +33,7 @@
   },
   "scripts": {
     "dev": "vite -c vite.preview.config.ts",
+    "build:preview": "vite build -c vite.preview.config.ts",
     "build": "vite build && npm run typings",
     "typings": "extract-typings -e src/index.ts -o dist/typings -f index",
     "lint": "oxlint",

@@ -8,6 +8,7 @@ import {
   isUnaryExpression,
   isIdentifier,
   isExpressionStatement,
+  isBooleanLiteral,
 } from '@/parser/helper';
 
 export interface PreprocessOutput {
@@ -33,6 +34,9 @@ function evaluateASTNode(node: ASTNode): ASTNodeOutput {
   if (isNumberLiteral(node)) {
     return { value: node.value, errors: [] };
   }
+  if (isBooleanLiteral(node)) {
+    return { value: node.value ? 1 : 0, errors: [] };
+  }
   if (isUnaryExpression(node)) {
     const errors: string[] = [];
     const operandOutput = evaluateASTNode(node.operand);
@@ -49,6 +53,8 @@ function evaluateASTNode(node: ASTNode): ASTNodeOutput {
     if (node.operator === '~') {
       return { value: ~operandOutput.value, errors };
     }
+    errors.push(`Unsupported unary operator: ${node.operator}`);
+    return { value: 0, errors };
   }
   if (isBinaryExpression(node)) {
     const errors: string[] = [];
@@ -101,7 +107,7 @@ function evaluateASTNode(node: ASTNode): ASTNodeOutput {
     if (node.operator === '||') {
       return { value: leftOutput.value !== 0 || rightOutput.value !== 0 ? 1 : 0, errors };
     }
-    errors.push(`Unsupported operator: ${node.operator}`);
+    errors.push(`Unsupported binary operator: ${node.operator}`);
     return { value: 0, errors };
   }
   if (isConditionalExpression(node)) {
