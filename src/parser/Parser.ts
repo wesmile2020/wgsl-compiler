@@ -32,60 +32,56 @@ import {
 } from './ASTType';
 import { BINARY_OPERATOR_PRECEDENCE } from './define';
 import { TokenType, type Token } from '@/lexer/TokenType';
-import { dealCloseTemplateToken, parseNumber } from './helper';
+import { parseNumber } from './helper';
+import { type ILexer } from '@/lexer/Lexer';
 
 export interface ParserOutput {
   program: ProgramNode;
   errors: ParserError[];
 }
 
-interface StoreState {
-  position: number;
-  errors: ParserError[];
-}
+const BEGIN_TOKEN: Token = {
+  type: TokenType.ERROR,
+  value: 'BEGIN',
+  raw: 'BEGIN',
+  line: -1,
+  column: -1,
+  start: -1,
+  end: -1,
+};
 
 export class Parser {
-  private _tokens: Token[] = [];
   private _errors: ParserError[] = [];
-  private _position: number = 0;
+  private _lexer: ILexer;
+  private _previous: Token = BEGIN_TOKEN;
+  private _current: Token = BEGIN_TOKEN;
+  private _isEnd: boolean = false;
 
-  constructor(tokens: Token[]) {
-    this._tokens = tokens;
-  }
-
-  private _isEnd(): boolean {
-    return (
-      this._position >= this._tokens.length || this._tokens[this._position].type === TokenType.EOF
-    );
-  }
-
-  private _previous(): Token {
-    if (this._position <= 0) {
-      return this._tokens[this._tokens.length - 1];
-    }
-    return this._tokens[this._position - 1];
-  }
-
-  private _current(): Token {
-    if (this._position >= this._tokens.length) {
-      return this._tokens[this._tokens.length - 1];
-    }
-    return this._tokens[this._position];
+  constructor(lexer: ILexer) {
+    this._lexer = lexer;
+    this._advance();
   }
 
   private _advance(): Token {
-    if (this._position < this._tokens.length) {
-      this._position += 1;
+    if (this._lexer.isEnd()) {
+      this._isEnd = true;
+      return this._current;
     }
-    return this._previous();
+
+    this._previous = this._current;
+    const next = this._lexer.next();
+    this._current = next.value;
+    if (next.errored) {
+      this._error(next.info.message);
+    }
+    return this._previous;
   }
 
   private _check(type: TokenType): boolean {
-    if (this._position >= this._tokens.length) {
+    if (this._isEnd) {
       return false;
     }
-    const token = this._tokens[this._position];
-    return token.type === type;
+    return this._current.type === type;
   }
 
   private _expect(type: TokenType, message: string): MayBe<Token> {
@@ -108,7 +104,7 @@ export class Parser {
   }
 
   private _snapshotPosition(): Position {
-    const token = this._current();
+    const token = this._current;
     return {
       line: token.line,
       column: token.column,
@@ -122,7 +118,7 @@ export class Parser {
       line: start.line,
       column: start.column,
       start: start.start,
-      end: this._previous().end,
+      end: this._previous.end,
     };
   }
 
@@ -143,20 +139,8 @@ export class Parser {
     });
   }
 
-  private _store(): StoreState {
-    return {
-      position: this._position,
-      errors: [...this._errors],
-    };
-  }
-
-  private _restore(state: StoreState): void {
-    this._position = state.position;
-    this._errors = state.errors;
-  }
-
   private _synchronize(): void {
-    while (!this._isEnd()) {
+    while (!this._isEnd) {
       const token = this._advance();
       switch (token.type) {
         case TokenType.SEMICOLON:
@@ -182,7 +166,7 @@ export class Parser {
     const body: ASTNode[] = [];
     const start = this._snapshotPosition();
 
-    while (!this._isEnd()) {
+    while (!this._isEnd) {
       if (this._match(TokenType.SEMICOLON)) {
         continue;
       }
@@ -264,9 +248,8 @@ export class Parser {
     if (expression.errored) {
       return expression;
     }
-    while (!this._isEnd()) {
-      const state = this._store();
-      const operatorToken = this._current();
+    while (!this._isEnd) {
+      const operatorToken = this._current;
       const operator = operatorToken.value;
       if (!(operator in BINARY_OPERATOR_PRECEDENCE)) {
         break;
@@ -278,10 +261,6 @@ export class Parser {
       this._advance();
       const right = this._binary_expression(precedence + 1);
       if (right.errored) {
-        if (this._is_possible_template_end(operatorToken)) {
-          this._restore(state);
-          return expression;
-        }
         return right;
       }
       if (expression.matched && right.matched) {
@@ -311,7 +290,7 @@ export class Parser {
         TokenType.AND,
       )
     ) {
-      const operatorToken = this._previous();
+      const operatorToken = this._previous;
       const operand = this._unary_expression();
       if (operand.errored) {
         return operand;
@@ -402,10 +381,10 @@ export class Parser {
     if (call.errored || call.matched) {
       return call;
     }
-    if (this._isEnd()) {
-      this._error(`Unexpected token ${this._previous().value}`);
+    if (this._isEnd) {
+      this._error(`Unexpected token ${this._previous.value}`);
     } else {
-      this._error(`Unexpected token ${this._current().value}`);
+      this._error(`Unexpected token ${this._current.value}`);
       this._advance(); // skip the unexpected token
     }
     return { matched: false, errored: true };
@@ -433,8 +412,8 @@ export class Parser {
     if (this._match(TokenType.INT_LITERAL, TokenType.FLOAT_LITERAL)) {
       const node: NumberLiteralNode = {
         kind: ASTKind.NUMBER_LITERAL,
-        value: parseNumber(this._previous().value),
-        raw: this._previous().raw,
+        value: parseNumber(this._previous.value),
+        raw: this._previous.raw,
         position: this._makePosition(start),
       };
       return { matched: true, errored: false, value: node };
@@ -442,8 +421,8 @@ export class Parser {
     if (this._match(TokenType.BOOLEAN_LITERAL)) {
       const node: BooleanLiteralNode = {
         kind: ASTKind.BOOLEAN_LITERAL,
-        value: this._previous().value === 'true',
-        raw: this._previous().raw,
+        value: this._previous.value === 'true',
+        raw: this._previous.raw,
         position: this._makePosition(start),
       };
       return { matched: true, errored: false, value: node };
@@ -451,8 +430,8 @@ export class Parser {
     if (this._match(TokenType.STRING_LITERAL)) {
       const node: StringLiteralNode = {
         kind: ASTKind.STRING_LITERAL,
-        value: this._previous().value,
-        raw: this._previous().raw,
+        value: this._previous.value,
+        raw: this._previous.raw,
         position: this._makePosition(start),
       };
       return { matched: true, errored: false, value: node };
@@ -533,7 +512,7 @@ export class Parser {
     if (this._match(TokenType.IDENTIFIER)) {
       const node: IdentifierNode = {
         kind: ASTKind.IDENTIFIER,
-        name: this._previous().value,
+        name: this._previous.value,
         position: this._makePosition(start),
       };
       return { value: node, matched: true, errored: false };
@@ -551,30 +530,21 @@ export class Parser {
   }
 
   private _template_list(): MayBe<ASTNode[]> {
-    const state = this._store();
-
     if (this._match(TokenType.LESS_THAN)) {
       const args: ASTNode[] = [];
-      if (!this._is_possible_template_end(this._current())) {
+      if (!this._is_possible_template_end(this._current)) {
         do {
           const expression = this._expression();
           if (expression.errored) {
-            this._restore(state);
-            return { matched: false, errored: false };
+            return expression;
           }
           if (expression.matched) {
             args.push(expression.value);
           }
-        } while (this._match(TokenType.COMMA) && !this._is_possible_template_end(this._current()));
-      }
-      const [next, suffix] = dealCloseTemplateToken(this._current());
-      this._tokens[this._position] = next;
-      if (suffix) {
-        this._tokens.splice(this._position + 1, 0, suffix);
+        } while (this._match(TokenType.COMMA) && !this._is_possible_template_end(this._current));
       }
       const expected = this._expect(TokenType.GREATER_THAN, 'Expected > after template list');
       if (expected.errored) {
-        this._restore(state);
         return { matched: false, errored: false };
       }
       return { matched: true, errored: false, value: args };

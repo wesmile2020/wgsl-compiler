@@ -1,4 +1,11 @@
-import { TokenType, type LexerError, type LexerOutput, type Token } from './TokenType';
+import {
+  TokenType,
+  type LexerError,
+  type LexerOutput,
+  type MayBe,
+  type Template,
+  type Token,
+} from './TokenType';
 import {
   KEYWORDS,
   RESERVED_WORDS,
@@ -31,21 +38,27 @@ const IS_IDENTIFIER_PART = 4;
 const IS_DIGIT = 8;
 const IS_HEX_DIGIT = 16;
 
-export class Lexer {
+export interface ILexer {
+  next(): MayBe;
+  isEnd(): boolean;
+  discoveryTemplates(): Template[];
+}
+
+export class Lexer implements ILexer {
   private _line: number = 1;
   private _column: number = 1;
   private _position: number = 0;
   private _source: string = '';
-  private _errors: LexerError[] = [];
 
   constructor(source: string) {
     this._source = source;
   }
 
-  tokenize(): LexerOutput {
-    const tokens: Token[] = [];
-    this._errors = [];
+  isEnd(): boolean {
+    return this._position >= this._source.length;
+  }
 
+  next(): MayBe {
     while (this._position < this._source.length) {
       const code = this._source.charCodeAt(this._position);
       // skip whitespace
@@ -58,58 +71,80 @@ export class Lexer {
         } else {
           this._column += 1;
         }
-        continue;
+      } else {
+        break;
       }
+    }
 
-      // deal comment
-      if (code === 47 && this._position + 1 < this._source.length) {
-        // /
-        const nextCode = this._source.charCodeAt(this._position + 1);
-        if (nextCode === 47) {
-          tokens[tokens.length] = this._readLineComment();
-          continue;
-        }
-        if (nextCode === 42) {
-          // *
-          tokens[tokens.length] = this._readBlockComment();
-          continue;
-        }
+    if (this._position >= this._source.length) {
+      const eof = this._createToken(TokenType.EOF, '\0', this._position, this._line, this._column);
+      return { errored: false, value: eof };
+    }
+
+    const code = this._source.charCodeAt(this._position);
+    // deal comment
+    if (code === 47 && this._position + 1 < this._source.length) {
+      // /
+      const nextCode = this._source.charCodeAt(this._position + 1);
+      if (nextCode === 47) {
+        return this._readLineComment();
       }
-
-      // deal identifier and keyword
-      if (code < 128 && CHAR_CODE_LOOKUP[code] & IS_IDENTIFIER_START) {
-        tokens[tokens.length] = this._readIdentifierOrKeyword();
-        continue;
+      if (nextCode === 42) {
+        // *
+        return this._readBlockComment();
       }
+    }
 
-      // deal number literal
-      if (
-        (code >= 48 && code <= 57) ||
-        (code === 46 &&
-          this._position + 1 < this._source.length &&
-          REGEX_DIGIT.test(this._source[this._position + 1]))
-      ) {
-        // 0-9 or .[0-9]
-        tokens[tokens.length] = this._readNumberLiteral();
-        continue;
+    // deal identifier and keyword
+    if (code < 128 && CHAR_CODE_LOOKUP[code] & IS_IDENTIFIER_START) {
+      return this._readIdentifierOrKeyword();
+    }
+
+    // deal number literal
+    if (
+      (code >= 48 && code <= 57) ||
+      (code === 46 &&
+        this._position + 1 < this._source.length &&
+        REGEX_DIGIT.test(this._source[this._position + 1]))
+    ) {
+      // 0-9 or .[0-9]
+      return this._readNumberLiteral();
+    }
+
+    // deal string literal
+    if (code === 34 || code === 39) {
+      return this._readStringLiteral(this._source[this._position]);
+    }
+
+    return this._readOperatorOrPunctuation();
+  }
+
+  discoveryTemplates(): Template[] {
+    const templates: Template[] = [];
+
+    return templates;
+  }
+
+  tokenize(): LexerOutput {
+    const tokens: Token[] = [];
+    const errors: LexerError[] = [];
+
+    while (this._position < this._source.length) {
+      const token = this.next();
+      if (token.errored) {
+        errors.push(token.info);
+      } else {
+        tokens.push(token.value);
       }
-
-      // deal string literal
-      if (code === 34 || code === 39) {
-        tokens[tokens.length] = this._readStringLiteral(this._source[this._position]);
-        continue;
-      }
-
-      tokens[tokens.length] = this._readOperatorOrPunctuation();
     }
 
     const eof = this._createToken(TokenType.EOF, '\0', this._position, this._line, this._column);
     tokens.push(eof);
 
-    return { tokens, errors: this._errors };
+    return { tokens, errors };
   }
 
-  private _readOperatorOrPunctuation(): Token {
+  private _readOperatorOrPunctuation(): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -121,13 +156,14 @@ export class Lexer {
       if (threeChar in THREE_SYNTACTIC_TOKENS) {
         this._position += 3;
         this._column += 3;
-        return this._createToken(
+        const token = this._createToken(
           THREE_SYNTACTIC_TOKENS[threeChar],
           threeChar,
           start,
           startLine,
           startColumn,
         );
+        return { errored: false, value: token };
       }
     }
     // two operators
@@ -136,23 +172,31 @@ export class Lexer {
       if (twoChar in TWO_SYNTACTIC_TOKENS) {
         this._position += 2;
         this._column += 2;
-        return this._createToken(
+        const token = this._createToken(
           TWO_SYNTACTIC_TOKENS[twoChar],
           twoChar,
           start,
           startLine,
           startColumn,
         );
+        return { errored: false, value: token };
       }
     }
     // one operator
     if (char in ONE_SYNTACTIC_TOKENS) {
       this._position += 1;
       this._column += 1;
-      return this._createToken(ONE_SYNTACTIC_TOKENS[char], char, start, startLine, startColumn);
+      const token = this._createToken(
+        ONE_SYNTACTIC_TOKENS[char],
+        char,
+        start,
+        startLine,
+        startColumn,
+      );
+      return { errored: false, value: token };
     }
 
-    this._addError(
+    const error = this._error(
       `Unexpected character '${this._source[this._position]}'`,
       this._line,
       this._column,
@@ -160,16 +204,24 @@ export class Lexer {
     this._position += 1;
     this._column += 1;
 
-    return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
+    return error;
   }
 
-  private _addError(message: string, line?: number, column?: number): void {
-    this._errors.push({
+  private _error(message: string, line?: number, column?: number): MayBe {
+    const info: LexerError = {
       message,
       line: line ?? this._line,
       column: column ?? this._column,
       position: this._position,
-    });
+    };
+    const token = this._createToken(
+      TokenType.ERROR,
+      'error',
+      this._position,
+      this._line,
+      this._column,
+    );
+    return { errored: true, value: token, info };
   }
 
   private _createToken(
@@ -190,7 +242,7 @@ export class Lexer {
     };
   }
 
-  private _readStringLiteral(quote: string): Token {
+  private _readStringLiteral(quote: string): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -242,14 +294,13 @@ export class Lexer {
     }
 
     if (!isEnd) {
-      this._addError('Unterminated string literal', startLine, startColumn);
-      return this._createToken(TokenType.ERROR, '\0', start, startLine, startColumn);
+      return this._error('Unterminated string literal', startLine, startColumn);
     }
-
-    return this._createToken(TokenType.STRING_LITERAL, value, start, startLine, startColumn);
+    const token = this._createToken(TokenType.STRING_LITERAL, value, start, startLine, startColumn);
+    return { errored: false, value: token };
   }
 
-  private _readNumberLiteral(): Token {
+  private _readNumberLiteral(): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -331,10 +382,11 @@ export class Lexer {
     }
 
     const value = this._source.substring(start, this._position);
-    return this._createToken(type, value, start, startLine, startColumn);
+    const token = this._createToken(type, value, start, startLine, startColumn);
+    return { errored: false, value: token };
   }
 
-  private _readIdentifierOrKeyword(): Token {
+  private _readIdentifierOrKeyword(): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -358,11 +410,11 @@ export class Lexer {
     } else if (value in RESERVED_WORDS) {
       type = RESERVED_WORDS[value];
     }
-
-    return this._createToken(type, value, start, startLine, startColumn);
+    const token = this._createToken(type, value, start, startLine, startColumn);
+    return { value: token, errored: false };
   }
 
-  private _readLineComment(): Token {
+  private _readLineComment(): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -376,10 +428,11 @@ export class Lexer {
     }
 
     const value = this._source.slice(start + 2, this._position);
-    return this._createToken(TokenType.LINE_COMMENT, value, start, startLine, startColumn);
+    const token = this._createToken(TokenType.LINE_COMMENT, value, start, startLine, startColumn);
+    return { value: token, errored: false };
   }
 
-  private _readBlockComment(): Token {
+  private _readBlockComment(): MayBe {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -406,10 +459,11 @@ export class Lexer {
     }
 
     if (!isEnd) {
-      this._addError('Unterminated block comment', startLine, startColumn);
+      return this._error('Unterminated block comment', startLine, startColumn);
     }
 
     const value = this._source.slice(start + 2, this._position - 2);
-    return this._createToken(TokenType.BLOCK_COMMENT, value, start, startLine, startColumn);
+    const token = this._createToken(TokenType.BLOCK_COMMENT, value, start, startLine, startColumn);
+    return { value: token, errored: false };
   }
 }

@@ -10,6 +10,8 @@ import {
   isExpressionStatement,
   isBooleanLiteral,
 } from '@/parser/helper';
+import { type ILexer } from '@/lexer/Lexer';
+import { type Token, type MayBe, type Template } from '@/lexer/TokenType';
 
 export interface PreprocessOutput {
   code: string;
@@ -133,27 +135,51 @@ function evaluateASTNode(node: ASTNode): ASTNodeOutput {
 
 function evaluateExpression(expansion: MacroExpansion, expression: string): ExpressionOutput {
   let value = false;
-  const errors: string[] = [];
   const expandOutput = expansion.expand(expression);
   if (expandOutput.errors.length > 0) {
-    errors.push(...expandOutput.errors);
-  } else {
-    const parseOutput = new Parser(expandOutput.tokens).parse();
-    if (parseOutput.errors.length > 0) {
-      for (let k = 0; k < parseOutput.errors.length; k += 1) {
-        errors.push(parseOutput.errors[k].message);
-      }
-    } else if (parseOutput.program.body.length > 0) {
-      const evaluateOutput = evaluateASTNode(parseOutput.program.body[0]);
-      if (evaluateOutput.errors.length > 0) {
-        errors.push(...evaluateOutput.errors);
-      } else {
-        value = evaluateOutput.value !== 0;
-      }
+    return { value, errors: expandOutput.errors };
+  }
+  const iterator = new TokenIterator(expandOutput.tokens);
+  const parseOutput = new Parser(iterator).parse();
+  if (parseOutput.errors.length > 0) {
+    const errors: string[] = [];
+    for (let k = 0; k < parseOutput.errors.length; k += 1) {
+      errors.push(parseOutput.errors[k].message);
     }
+    return { value, errors };
+  }
+  if (parseOutput.program.body.length > 0) {
+    const evaluateOutput = evaluateASTNode(parseOutput.program.body[0]);
+    if (evaluateOutput.errors.length > 0) {
+      return { value, errors: evaluateOutput.errors };
+    }
+    value = evaluateOutput.value !== 0;
   }
 
-  return { value, errors };
+  return { value, errors: [] };
+}
+
+class TokenIterator implements ILexer {
+  private _tokens: Token[];
+  private _position: number = 0;
+
+  constructor(tokens: Token[]) {
+    this._tokens = tokens;
+  }
+
+  next(): MayBe {
+    this._position += 1;
+    const token = this._tokens[this._position - 1];
+    return { errored: false, value: token };
+  }
+
+  isEnd(): boolean {
+    return this._position >= this._tokens.length;
+  }
+
+  discoveryTemplates(): Template[] {
+    return [];
+  }
 }
 
 interface PreprocessOptions {
