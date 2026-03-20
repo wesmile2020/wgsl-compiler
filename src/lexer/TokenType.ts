@@ -166,16 +166,3 @@ export interface Template {
   name: string;
   tokens: Token[];
 }
-
-interface MayBeSuccess {
-  value: Token;
-  errored: false;
-}
-
-interface MayBeError {
-  errored: true;
-  value: Token;
-  info: LexerError;
-}
-
-export type MayBe = MayBeSuccess | MayBeError;

@@ -11,7 +11,8 @@ import {
   isBooleanLiteral,
 } from '@/parser/helper';
 import { type ILexer } from '@/lexer/Lexer';
-import { type Token, type MayBe, type Template } from '@/lexer/TokenType';
+import { type MayBe } from '@/common/define';
+import { type Token, type Template, type LexerError } from '@/lexer/TokenType';
 
 export interface PreprocessOutput {
   code: string;
@@ -167,18 +168,18 @@ class TokenIterator implements ILexer {
     this._tokens = tokens;
   }
 
-  next(): MayBe {
+  next(): MayBe<Token, LexerError> {
     this._position += 1;
     const token = this._tokens[this._position - 1];
-    return { errored: false, value: token };
+    return { error: null, value: token };
   }
 
   isEnd(): boolean {
     return this._position >= this._tokens.length;
   }
 
-  discoveryTemplates(): Template[] {
-    return [];
+  discoveryTemplates(_ident: string): MayBe<Template[], LexerError> {
+    return { error: null, value: [] };
   }
 }
 

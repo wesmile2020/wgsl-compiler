@@ -68,11 +68,16 @@ export class Parser {
       return this._current;
     }
 
-    this._previous = this._current;
     const next = this._lexer.next();
+    console.log(next.value);
+    // skip comment
+    if (next.value.type === TokenType.LINE_COMMENT || next.value.type === TokenType.BLOCK_COMMENT) {
+      return this._advance();
+    }
+    this._previous = this._current;
     this._current = next.value;
-    if (next.errored) {
-      this._error(next.info.message);
+    if (next.error) {
+      this._error(next.error.message);
     }
     return this._previous;
   }

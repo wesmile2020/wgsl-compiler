@@ -2,7 +2,6 @@ import {
   TokenType,
   type LexerError,
   type LexerOutput,
-  type MayBe,
   type Template,
   type Token,
 } from './TokenType';
@@ -13,6 +12,9 @@ import {
   TWO_SYNTACTIC_TOKENS,
   ONE_SYNTACTIC_TOKENS,
 } from './define';
+import { type MayBe } from '@/common/define';
+
+type R<T> = MayBe<T, LexerError>;
 
 const REGEX_WHITESPACE = /^\s$/;
 const REGEX_IDENTIFIER_START = /^[a-zA-Z_]$/;
@@ -39,9 +41,14 @@ const IS_DIGIT = 8;
 const IS_HEX_DIGIT = 16;
 
 export interface ILexer {
-  next(): MayBe;
+  next(): R<Token>;
   isEnd(): boolean;
-  discoveryTemplates(): Template[];
+  discoveryTemplates(startIdent: string): R<Template[]>;
+}
+
+interface UnclosedCandidate {
+  position: number;
+  depth: number;
 }
 
 export class Lexer implements ILexer {
@@ -58,7 +65,7 @@ export class Lexer implements ILexer {
     return this._position >= this._source.length;
   }
 
-  next(): MayBe {
+  private _skipWhitespace() {
     while (this._position < this._source.length) {
       const code = this._source.charCodeAt(this._position);
       // skip whitespace
@@ -75,10 +82,14 @@ export class Lexer implements ILexer {
         break;
       }
     }
+  }
+
+  next(): R<Token> {
+    this._skipWhitespace();
 
     if (this._position >= this._source.length) {
       const eof = this._createToken(TokenType.EOF, '\0', this._position, this._line, this._column);
-      return { errored: false, value: eof };
+      return { error: null, value: eof };
     }
 
     const code = this._source.charCodeAt(this._position);
@@ -119,10 +130,47 @@ export class Lexer implements ILexer {
     return this._readOperatorOrPunctuation();
   }
 
-  discoveryTemplates(): Template[] {
+  discoveryTemplates(startIdent: string): R<Template[]> {
     const templates: Template[] = [];
+    if (this._source[this._position] !== '<') {
+      return { error: null, value: templates };
+    }
+    const stack: UnclosedCandidate[] = [];
+    let nestingDepth = 0;
 
-    return templates;
+    let template: Template = {
+      name: startIdent,
+      tokens: [],
+    };
+    while (this._position < this._source.length) {
+      this._skipWhitespace();
+      const code = this._source.charCodeAt(this._position);
+      // deal comment
+      if (code === 47 && this._position + 1 < this._source.length) {
+        // /
+        const nextCode = this._source.charCodeAt(this._position + 1);
+        if (nextCode === 47) {
+          this._readLineComment();
+        }
+        if (nextCode === 42) {
+          // *
+          this._readBlockComment();
+        }
+      }
+
+      // deal number literal
+      if (
+        (code >= 48 && code <= 57) ||
+        (code === 46 &&
+          this._position + 1 < this._source.length &&
+          REGEX_DIGIT.test(this._source[this._position + 1]))
+      ) {
+        // 0-9 or .[0-9]
+        this._readNumberLiteral();
+      }
+    }
+
+    return { error: null, value: templates };
   }
 
   tokenize(): LexerOutput {
@@ -131,8 +179,8 @@ export class Lexer implements ILexer {
 
     while (this._position < this._source.length) {
       const token = this.next();
-      if (token.errored) {
-        errors.push(token.info);
+      if (token.error) {
+        errors.push(token.error);
       } else {
         tokens.push(token.value);
       }
@@ -144,7 +192,7 @@ export class Lexer implements ILexer {
     return { tokens, errors };
   }
 
-  private _readOperatorOrPunctuation(): MayBe {
+  private _readOperatorOrPunctuation(): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -163,7 +211,7 @@ export class Lexer implements ILexer {
           startLine,
           startColumn,
         );
-        return { errored: false, value: token };
+        return { error: null, value: token };
       }
     }
     // two operators
@@ -179,7 +227,7 @@ export class Lexer implements ILexer {
           startLine,
           startColumn,
         );
-        return { errored: false, value: token };
+        return { error: null, value: token };
       }
     }
     // one operator
@@ -193,7 +241,7 @@ export class Lexer implements ILexer {
         startLine,
         startColumn,
       );
-      return { errored: false, value: token };
+      return { error: null, value: token };
     }
 
     const error = this._error(
@@ -207,7 +255,7 @@ export class Lexer implements ILexer {
     return error;
   }
 
-  private _error(message: string, line?: number, column?: number): MayBe {
+  private _error(message: string, line?: number, column?: number): R<Token> {
     const info: LexerError = {
       message,
       line: line ?? this._line,
@@ -221,7 +269,7 @@ export class Lexer implements ILexer {
       this._line,
       this._column,
     );
-    return { errored: true, value: token, info };
+    return { error: info, value: token };
   }
 
   private _createToken(
@@ -242,7 +290,7 @@ export class Lexer implements ILexer {
     };
   }
 
-  private _readStringLiteral(quote: string): MayBe {
+  private _readStringLiteral(quote: string): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -297,10 +345,10 @@ export class Lexer implements ILexer {
       return this._error('Unterminated string literal', startLine, startColumn);
     }
     const token = this._createToken(TokenType.STRING_LITERAL, value, start, startLine, startColumn);
-    return { errored: false, value: token };
+    return { error: null, value: token };
   }
 
-  private _readNumberLiteral(): MayBe {
+  private _readNumberLiteral(): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -383,10 +431,10 @@ export class Lexer implements ILexer {
 
     const value = this._source.substring(start, this._position);
     const token = this._createToken(type, value, start, startLine, startColumn);
-    return { errored: false, value: token };
+    return { error: null, value: token };
   }
 
-  private _readIdentifierOrKeyword(): MayBe {
+  private _readIdentifierOrKeyword(): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -411,10 +459,10 @@ export class Lexer implements ILexer {
       type = RESERVED_WORDS[value];
     }
     const token = this._createToken(type, value, start, startLine, startColumn);
-    return { value: token, errored: false };
+    return { value: token, error: null };
   }
 
-  private _readLineComment(): MayBe {
+  private _readLineComment(): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -429,10 +477,10 @@ export class Lexer implements ILexer {
 
     const value = this._source.slice(start + 2, this._position);
     const token = this._createToken(TokenType.LINE_COMMENT, value, start, startLine, startColumn);
-    return { value: token, errored: false };
+    return { value: token, error: null };
   }
 
-  private _readBlockComment(): MayBe {
+  private _readBlockComment(): R<Token> {
     const start = this._position;
     const startLine = this._line;
     const startColumn = this._column;
@@ -464,6 +512,6 @@ export class Lexer implements ILexer {
 
     const value = this._source.slice(start + 2, this._position - 2);
     const token = this._createToken(TokenType.BLOCK_COMMENT, value, start, startLine, startColumn);
-    return { value: token, errored: false };
+    return { value: token, error: null };
   }
 }
